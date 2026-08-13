@@ -1,0 +1,668 @@
+# Shared-VPC template — plan blocks in CREATION-DEPENDENCY order
+# HOST project = example-shared-vpc-host, SERVICE project = example-databricks-svc.
+# Terraform's own plan output is alphabetical; this file re-orders it by dependency.
+# NOTE: the automation SA's own host-project network roles are a PREREQUISITE
+#       (granted by the host-project owner before apply), not managed here.
+
+
+# ==========================================================================
+# LAYER 0 — naming
+# ==========================================================================
+  # random_string.suffix will be created
+  + resource "random_string" "suffix" {
+      + id          = (known after apply)
+      + length      = 3
+      + lower       = true
+      + min_lower   = 0
+      + min_numeric = 0
+      + min_special = 0
+      + min_upper   = 0
+      + number      = true
+      + numeric     = true
+      + result      = (known after apply)
+      + special     = false
+      + upper       = false
+    }
+
+Plan: 34 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + backend_pe_ip        = (known after apply)
+  + backend_psc_status   = (known after apply)
+  + front_end_psc_status = (known after apply)
+  + frontend_pe_ip       = (known after apply)
+  + host_project         = "example-shared-vpc-host"
+  + metastore_assignment = "none (relying on auto-assignment)"
+  + service_project      = "example-databricks-svc"
+  + workspace_id         = (known after apply)
+  + workspace_url        = (known after apply)
+
+# ==========================================================================
+# LAYER 1 — Shared VPC association (org-level; needs xpnAdmin)
+# ==========================================================================
+  # google_compute_shared_vpc_host_project.host[0] will be created
+  + resource "google_compute_shared_vpc_host_project" "host" {
+      + deletion_policy = "DELETE"
+      + id              = (known after apply)
+      + project         = "example-shared-vpc-host"
+    }
+  # google_compute_shared_vpc_service_project.service[0] will be created
+  + resource "google_compute_shared_vpc_service_project" "service" {
+      + host_project    = "example-shared-vpc-host"
+      + id              = (known after apply)
+      + service_project = "example-databricks-svc"
+    }
+
+# ==========================================================================
+# LAYER 2 — HOST network: VPC + subnets
+# ==========================================================================
+  # google_compute_network.vpc will be created
+  + resource "google_compute_network" "vpc" {
+      + auto_create_subnetworks                   = false
+      + bgp_always_compare_med                    = (known after apply)
+      + bgp_best_path_selection_mode              = (known after apply)
+      + bgp_inter_region_cost                     = (known after apply)
+      + delete_bgp_always_compare_med             = false
+      + delete_default_routes_on_create           = false
+      + deletion_policy                           = "DELETE"
+      + gateway_ipv4                              = (known after apply)
+      + id                                        = (known after apply)
+      + internal_ipv6_range                       = (known after apply)
+      + mtu                                       = (known after apply)
+      + name                                      = "example-vpc"
+      + network_firewall_policy_enforcement_order = "AFTER_CLASSIC_FIREWALL"
+      + network_id                                = (known after apply)
+      + numeric_id                                = (known after apply)
+      + project                                   = "example-shared-vpc-host"
+      + routing_mode                              = "REGIONAL"
+      + self_link                                 = (known after apply)
+    }
+  # google_compute_subnetwork.node_subnet will be created
+  + resource "google_compute_subnetwork" "node_subnet" {
+      + allow_subnet_cidr_routes_overlap = (known after apply)
+      + creation_timestamp               = (known after apply)
+      + deletion_policy                  = "DELETE"
+      + external_ipv6_prefix             = (known after apply)
+      + fingerprint                      = (known after apply)
+      + gateway_address                  = (known after apply)
+      + id                               = (known after apply)
+      + internal_ipv6_prefix             = (known after apply)
+      + ip_cidr_range                    = "10.10.0.0/24"
+      + ipv6_cidr_range                  = (known after apply)
+      + ipv6_gce_endpoint                = (known after apply)
+      + name                             = "example-node-subnet"
+      + network                          = (known after apply)
+      + private_ip_google_access         = true
+      + private_ipv6_google_access       = (known after apply)
+      + project                          = "example-shared-vpc-host"
+      + purpose                          = (known after apply)
+      + region                           = "us-central1"
+      + self_link                        = (known after apply)
+      + stack_type                       = (known after apply)
+      + state                            = (known after apply)
+      + subnetwork_id                    = (known after apply)
+
+      + secondary_ip_range (known after apply)
+    }
+  # google_compute_subnetwork.pe_subnet will be created
+  + resource "google_compute_subnetwork" "pe_subnet" {
+      + allow_subnet_cidr_routes_overlap = (known after apply)
+      + creation_timestamp               = (known after apply)
+      + deletion_policy                  = "DELETE"
+      + external_ipv6_prefix             = (known after apply)
+      + fingerprint                      = (known after apply)
+      + gateway_address                  = (known after apply)
+      + id                               = (known after apply)
+      + internal_ipv6_prefix             = (known after apply)
+      + ip_cidr_range                    = "10.10.1.0/28"
+      + ipv6_cidr_range                  = (known after apply)
+      + ipv6_gce_endpoint                = (known after apply)
+      + name                             = "example-psc-subnet"
+      + network                          = (known after apply)
+      + private_ip_google_access         = (known after apply)
+      + private_ipv6_google_access       = (known after apply)
+      + project                          = "example-shared-vpc-host"
+      + purpose                          = "PRIVATE"
+      + region                           = "us-central1"
+      + self_link                        = (known after apply)
+      + stack_type                       = (known after apply)
+      + state                            = (known after apply)
+      + subnetwork_id                    = (known after apply)
+
+      + secondary_ip_range (known after apply)
+    }
+
+# ==========================================================================
+# LAYER 3 — HOST egress
+# ==========================================================================
+  # google_compute_router.router will be created
+  + resource "google_compute_router" "router" {
+      + creation_timestamp = (known after apply)
+      + deletion_policy    = "DELETE"
+      + id                 = (known after apply)
+      + name               = "example-vpc-router"
+      + network            = (known after apply)
+      + project            = "example-shared-vpc-host"
+      + region             = "us-central1"
+      + self_link          = (known after apply)
+    }
+  # google_compute_router_nat.nat will be created
+  + resource "google_compute_router_nat" "nat" {
+      + auto_network_tier                   = (known after apply)
+      + deletion_policy                     = "DELETE"
+      + drain_nat_ips                       = (known after apply)
+      + enable_dynamic_port_allocation      = (known after apply)
+      + enable_endpoint_independent_mapping = (known after apply)
+      + endpoint_types                      = (known after apply)
+      + icmp_idle_timeout_sec               = 30
+      + id                                  = (known after apply)
+      + min_ports_per_vm                    = (known after apply)
+      + name                                = "example-vpc-nat"
+      + nat_ip_allocate_option              = "AUTO_ONLY"
+      + nat_ips                             = (known after apply)
+      + project                             = "example-shared-vpc-host"
+      + region                              = "us-central1"
+      + router                              = "example-vpc-router"
+      + source_subnetwork_ip_ranges_to_nat  = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+      + tcp_established_idle_timeout_sec    = 1200
+      + tcp_time_wait_timeout_sec           = 120
+      + tcp_transitory_idle_timeout_sec     = 30
+      + type                                = "PUBLIC"
+      + udp_idle_timeout_sec                = 30
+    }
+
+# ==========================================================================
+# LAYER 4 — HOST firewall
+# ==========================================================================
+  # google_compute_firewall.allow_internal will be created
+  + resource "google_compute_firewall" "allow_internal" {
+      + creation_timestamp = (known after apply)
+      + deletion_policy    = "DELETE"
+      + destination_ranges = (known after apply)
+      + direction          = "INGRESS"
+      + enable_logging     = (known after apply)
+      + id                 = (known after apply)
+      + name               = "example-vpc-allow-internal"
+      + network            = (known after apply)
+      + priority           = 1000
+      + project            = "example-shared-vpc-host"
+      + self_link          = (known after apply)
+      + source_ranges      = [
+          + "10.10.0.0/24",
+          + "10.10.1.0/28",
+        ]
+
+      + allow {
+          + ports    = []
+          + protocol = "icmp"
+        }
+      + allow {
+          + ports    = []
+          + protocol = "tcp"
+        }
+      + allow {
+          + ports    = []
+          + protocol = "udp"
+        }
+    }
+  # google_compute_firewall.node_to_psc will be created
+  + resource "google_compute_firewall" "node_to_psc" {
+      + creation_timestamp = (known after apply)
+      + deletion_policy    = "DELETE"
+      + destination_ranges = [
+          + "10.10.1.0/28",
+        ]
+      + direction          = "INGRESS"
+      + enable_logging     = (known after apply)
+      + id                 = (known after apply)
+      + name               = "example-vpc-node-to-psc"
+      + network            = (known after apply)
+      + priority           = 1000
+      + project            = "example-shared-vpc-host"
+      + self_link          = (known after apply)
+      + source_ranges      = [
+          + "10.10.0.0/24",
+        ]
+
+      + allow {
+          + ports    = [
+              + "443",
+              + "6666",
+              + "8443-8451",
+            ]
+          + protocol = "tcp"
+        }
+    }
+
+# ==========================================================================
+# LAYER 5 — Shared VPC IAM (service-project agents -> networkUser on host subnet)
+# ==========================================================================
+  # google_compute_subnetwork_iam_member.shared_subnet_users["serviceAccount:111111111111@cloudservices.gserviceaccount.com"] will be created
+  + resource "google_compute_subnetwork_iam_member" "shared_subnet_users" {
+      + etag       = (known after apply)
+      + id         = (known after apply)
+      + member     = "serviceAccount:111111111111@cloudservices.gserviceaccount.com"
+      + project    = "example-shared-vpc-host"
+      + region     = "us-central1"
+      + role       = "roles/compute.networkUser"
+      + subnetwork = "example-node-subnet"
+    }
+  # google_compute_subnetwork_iam_member.shared_subnet_users["serviceAccount:service-111111111111@compute-system.iam.gserviceaccount.com"] will be created
+  + resource "google_compute_subnetwork_iam_member" "shared_subnet_users" {
+      + etag       = (known after apply)
+      + id         = (known after apply)
+      + member     = "serviceAccount:service-111111111111@compute-system.iam.gserviceaccount.com"
+      + project    = "example-shared-vpc-host"
+      + region     = "us-central1"
+      + role       = "roles/compute.networkUser"
+      + subnetwork = "example-node-subnet"
+    }
+
+# ==========================================================================
+# LAYER 6 — CMEK in SERVICE project
+# ==========================================================================
+  # google_kms_key_ring.ring will be created
+  + resource "google_kms_key_ring" "ring" {
+      + id       = (known after apply)
+      + location = "us-central1"
+      + name     = "example-kr"
+      + project  = "example-databricks-svc"
+    }
+  # google_kms_crypto_key.key will be created
+  + resource "google_kms_crypto_key" "key" {
+      + crypto_key_backend         = (known after apply)
+      + deletion_policy            = "DELETE"
+      + destroy_scheduled_duration = (known after apply)
+      + effective_labels           = {
+          + "goog-terraform-provisioned" = "true"
+        }
+      + id                         = (known after apply)
+      + import_only                = (known after apply)
+      + key_ring                   = (known after apply)
+      + name                       = "example-cmek-key"
+      + primary                    = (known after apply)
+      + purpose                    = "ENCRYPT_DECRYPT"
+      + rotation_period            = "7776000s"
+      + terraform_labels           = {
+          + "goog-terraform-provisioned" = "true"
+        }
+
+      + version_template (known after apply)
+    }
+  # google_kms_crypto_key_iam_member.storage_agents["serviceAccount:service-111111111111@compute-system.iam.gserviceaccount.com"] will be created
+  + resource "google_kms_crypto_key_iam_member" "storage_agents" {
+      + crypto_key_id = (known after apply)
+      + etag          = (known after apply)
+      + id            = (known after apply)
+      + member        = "serviceAccount:service-111111111111@compute-system.iam.gserviceaccount.com"
+      + role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+    }
+  # google_kms_crypto_key_iam_member.storage_agents["serviceAccount:service-111111111111@gs-project-accounts.iam.gserviceaccount.com"] will be created
+  + resource "google_kms_crypto_key_iam_member" "storage_agents" {
+      + crypto_key_id = (known after apply)
+      + etag          = (known after apply)
+      + id            = (known after apply)
+      + member        = "serviceAccount:service-111111111111@gs-project-accounts.iam.gserviceaccount.com"
+      + role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+    }
+
+# ==========================================================================
+# LAYER 7 — PSC endpoint IPs (HOST)
+# ==========================================================================
+  # google_compute_address.frontend_pe_ip will be created
+  + resource "google_compute_address" "frontend_pe_ip" {
+      + address            = (known after apply)
+      + address_id         = (known after apply)
+      + address_type       = "INTERNAL"
+      + creation_timestamp = (known after apply)
+      + deletion_policy    = "DELETE"
+      + effective_labels   = {
+          + "goog-terraform-provisioned" = "true"
+        }
+      + id                 = (known after apply)
+      + label_fingerprint  = (known after apply)
+      + name               = "example-frontend-ip"
+      + network_tier       = (known after apply)
+      + prefix_length      = (known after apply)
+      + project            = "example-shared-vpc-host"
+      + purpose            = (known after apply)
+      + region             = "us-central1"
+      + self_link          = (known after apply)
+      + subnetwork         = (known after apply)
+      + terraform_labels   = {
+          + "goog-terraform-provisioned" = "true"
+        }
+      + users              = (known after apply)
+    }
+  # google_compute_address.backend_pe_ip will be created
+  + resource "google_compute_address" "backend_pe_ip" {
+      + address            = (known after apply)
+      + address_id         = (known after apply)
+      + address_type       = "INTERNAL"
+      + creation_timestamp = (known after apply)
+      + deletion_policy    = "DELETE"
+      + effective_labels   = {
+          + "goog-terraform-provisioned" = "true"
+        }
+      + id                 = (known after apply)
+      + label_fingerprint  = (known after apply)
+      + name               = "example-backend-ip"
+      + network_tier       = (known after apply)
+      + prefix_length      = (known after apply)
+      + project            = "example-shared-vpc-host"
+      + purpose            = (known after apply)
+      + region             = "us-central1"
+      + self_link          = (known after apply)
+      + subnetwork         = (known after apply)
+      + terraform_labels   = {
+          + "goog-terraform-provisioned" = "true"
+        }
+      + users              = (known after apply)
+    }
+
+# ==========================================================================
+# LAYER 8 — PSC forwarding rules (HOST)
+# ==========================================================================
+  # google_compute_forwarding_rule.frontend_psc_ep will be created
+  + resource "google_compute_forwarding_rule" "frontend_psc_ep" {
+      + base_forwarding_rule  = (known after apply)
+      + creation_timestamp    = (known after apply)
+      + deletion_policy       = "DELETE"
+      + effective_labels      = (known after apply)
+      + forwarding_rule_id    = (known after apply)
+      + id                    = (known after apply)
+      + ip_address            = (known after apply)
+      + ip_protocol           = (known after apply)
+      + ip_version            = (known after apply)
+      + label_fingerprint     = (known after apply)
+      + name                  = "example-frontend-ep"
+      + network               = (known after apply)
+      + network_tier          = (known after apply)
+      + port_range            = (known after apply)
+      + project               = "example-shared-vpc-host"
+      + psc_connection_id     = (known after apply)
+      + psc_connection_status = (known after apply)
+      + recreate_closed_psc   = false
+      + region                = "us-central1"
+      + self_link             = (known after apply)
+      + service_name          = (known after apply)
+      + subnetwork            = (known after apply)
+      + target                = "projects/gcp-prod-general/regions/us-central1/serviceAttachments/plproxy-psc-endpoint-all-ports"
+      + terraform_labels      = (known after apply)
+        # (1 unchanged attribute hidden)
+
+      + service_directory_registrations (known after apply)
+    }
+  # google_compute_forwarding_rule.backend_psc_ep will be created
+  + resource "google_compute_forwarding_rule" "backend_psc_ep" {
+      + base_forwarding_rule  = (known after apply)
+      + creation_timestamp    = (known after apply)
+      + deletion_policy       = "DELETE"
+      + effective_labels      = (known after apply)
+      + forwarding_rule_id    = (known after apply)
+      + id                    = (known after apply)
+      + ip_address            = (known after apply)
+      + ip_protocol           = (known after apply)
+      + ip_version            = (known after apply)
+      + label_fingerprint     = (known after apply)
+      + name                  = "example-backend-ep"
+      + network               = (known after apply)
+      + network_tier          = (known after apply)
+      + port_range            = (known after apply)
+      + project               = "example-shared-vpc-host"
+      + psc_connection_id     = (known after apply)
+      + psc_connection_status = (known after apply)
+      + recreate_closed_psc   = false
+      + region                = "us-central1"
+      + self_link             = (known after apply)
+      + service_name          = (known after apply)
+      + subnetwork            = (known after apply)
+      + target                = "projects/prod-gcp-us-central1/regions/us-central1/serviceAttachments/ngrok-psc-endpoint"
+      + terraform_labels      = (known after apply)
+        # (1 unchanged attribute hidden)
+
+      + service_directory_registrations (known after apply)
+    }
+
+# ==========================================================================
+# LAYER 9 — Databricks account registration
+# ==========================================================================
+  # databricks_mws_customer_managed_keys.this will be created
+  + resource "databricks_mws_customer_managed_keys" "this" {
+      + account_id              = "00000000-0000-0000-0000-000000000000"
+      + creation_time           = (known after apply)
+      + customer_managed_key_id = (known after apply)
+      + id                      = (known after apply)
+      + use_cases               = [
+          + "STORAGE",
+          + "MANAGED_SERVICES",
+        ]
+
+      + gcp_key_info {
+          + kms_key_id = (known after apply)
+        }
+    }
+  # databricks_mws_vpc_endpoint.relay will be created
+  + resource "databricks_mws_vpc_endpoint" "relay" {
+      + account_id              = "00000000-0000-0000-0000-000000000000"
+      + aws_account_id          = (known after apply)
+      + aws_endpoint_service_id = (known after apply)
+      + id                      = (known after apply)
+      + state                   = (known after apply)
+      + use_case                = (known after apply)
+      + vpc_endpoint_id         = (known after apply)
+      + vpc_endpoint_name       = (known after apply)
+
+      + gcp_vpc_endpoint_info {
+          + endpoint_region       = "us-central1"
+          + project_id            = "example-shared-vpc-host"
+          + psc_connection_id     = (known after apply)
+          + psc_endpoint_name     = "example-backend-ep"
+          + service_attachment_id = (known after apply)
+        }
+    }
+  # databricks_mws_vpc_endpoint.workspace will be created
+  + resource "databricks_mws_vpc_endpoint" "workspace" {
+      + account_id              = "00000000-0000-0000-0000-000000000000"
+      + aws_account_id          = (known after apply)
+      + aws_endpoint_service_id = (known after apply)
+      + id                      = (known after apply)
+      + state                   = (known after apply)
+      + use_case                = (known after apply)
+      + vpc_endpoint_id         = (known after apply)
+      + vpc_endpoint_name       = (known after apply)
+
+      + gcp_vpc_endpoint_info {
+          + endpoint_region       = "us-central1"
+          + project_id            = "example-shared-vpc-host"
+          + psc_connection_id     = (known after apply)
+          + psc_endpoint_name     = "example-frontend-ep"
+          + service_attachment_id = (known after apply)
+        }
+    }
+  # databricks_mws_private_access_settings.pas will be created
+  + resource "databricks_mws_private_access_settings" "pas" {
+      + account_id                   = (known after apply)
+      + id                           = (known after apply)
+      + private_access_level         = "ACCOUNT"
+      + private_access_settings_id   = (known after apply)
+      + private_access_settings_name = (known after apply)
+      + public_access_enabled        = false
+      + region                       = "us-central1"
+    }
+  # databricks_mws_networks.this will be created
+  + resource "databricks_mws_networks" "this" {
+      + account_id    = (sensitive value)
+      + creation_time = (known after apply)
+      + id            = (known after apply)
+      + network_id    = (known after apply)
+      + network_name  = (known after apply)
+      + vpc_status    = (known after apply)
+      + workspace_id  = (known after apply)
+
+      + error_messages (known after apply)
+
+      + gcp_network_info {
+          + network_project_id = "example-shared-vpc-host"
+          + subnet_id          = "example-node-subnet"
+          + subnet_region      = "us-central1"
+          + vpc_id             = "example-vpc"
+        }
+
+      + vpc_endpoints {
+          + dataplane_relay = (known after apply)
+          + rest_api        = (known after apply)
+        }
+    }
+
+# ==========================================================================
+# LAYER 10 — the workspace (compute in SERVICE project)
+# ==========================================================================
+  # databricks_mws_workspaces.this will be created
+  + resource "databricks_mws_workspaces" "this" {
+      + account_id                               = (sensitive value)
+      + cloud                                    = (known after apply)
+      + creation_time                            = (known after apply)
+      + effective_compute_mode                   = (known after apply)
+      + gcp_workspace_sa                         = (known after apply)
+      + id                                       = (known after apply)
+      + is_no_public_ip_enabled                  = true
+      + location                                 = "us-central1"
+      + managed_services_customer_managed_key_id = (known after apply)
+      + network_connectivity_config_id           = (known after apply)
+      + network_id                               = (known after apply)
+      + pricing_tier                             = (known after apply)
+      + private_access_settings_id               = (known after apply)
+      + storage_customer_managed_key_id          = (known after apply)
+      + workspace_id                             = (known after apply)
+      + workspace_name                           = "example-prod-ws"
+      + workspace_status                         = (known after apply)
+      + workspace_status_message                 = (known after apply)
+      + workspace_url                            = (known after apply)
+
+      + cloud_resource_container {
+          + gcp {
+              + project_id = "example-databricks-svc"
+            }
+        }
+    }
+
+# ==========================================================================
+# LAYER 11 — post-workspace: workspace-SA subnet grant + admin user
+# ==========================================================================
+  # google_compute_subnetwork_iam_member.workspace_sa_network_user will be created
+  + resource "google_compute_subnetwork_iam_member" "workspace_sa_network_user" {
+      + etag       = (known after apply)
+      + id         = (known after apply)
+      + member     = (known after apply)
+      + project    = "example-shared-vpc-host"
+      + region     = "us-central1"
+      + role       = "roles/compute.networkUser"
+      + subnetwork = "example-node-subnet"
+    }
+  # databricks_user.admin will be created
+  + resource "databricks_user" "admin" {
+      + acl_principal_id           = (known after apply)
+      + active                     = true
+      + allow_cluster_create       = false
+      + allow_instance_pool_create = false
+      + databricks_sql_access      = false
+      + disable_as_user_deletion   = (known after apply)
+      + display_name               = (known after apply)
+      + home                       = (known after apply)
+      + id                         = (known after apply)
+      + repos                      = (known after apply)
+      + user_name                  = "databricks-admin@example.com"
+      + workspace_access           = false
+      + workspace_consume          = false
+
+      + provider_config (known after apply)
+    }
+  # databricks_group_member.admin_member will be created
+  + resource "databricks_group_member" "admin_member" {
+      + group_id  = (known after apply)
+      + id        = (known after apply)
+      + member_id = (known after apply)
+
+      + provider_config (known after apply)
+    }
+
+# ==========================================================================
+# LAYER 12 — private DNS (HOST)
+# ==========================================================================
+  # google_dns_managed_zone.private will be created
+  + resource "google_dns_managed_zone" "private" {
+      + creation_time    = (known after apply)
+      + deletion_policy  = "DELETE"
+      + description      = "Databricks private DNS zone (Example PSC)"
+      + dns_name         = "gcp.databricks.com."
+      + effective_labels = {
+          + "goog-terraform-provisioned" = "true"
+        }
+      + force_destroy    = false
+      + id               = (known after apply)
+      + managed_zone_id  = (known after apply)
+      + name             = "databricks"
+      + name_servers     = (known after apply)
+      + project          = "example-shared-vpc-host"
+      + terraform_labels = {
+          + "goog-terraform-provisioned" = "true"
+        }
+      + visibility       = "private"
+
+      + cloud_logging_config (known after apply)
+
+      + dnssec_config (known after apply)
+
+      + private_visibility_config {
+          + networks {
+              + network_url = (known after apply)
+            }
+        }
+    }
+  # google_dns_record_set.workspace_url will be created
+  + resource "google_dns_record_set" "workspace_url" {
+      + deletion_policy = "DELETE"
+      + id              = (known after apply)
+      + managed_zone    = "databricks"
+      + name            = (known after apply)
+      + project         = "example-shared-vpc-host"
+      + rrdatas         = (known after apply)
+      + ttl             = 300
+      + type            = "A"
+    }
+  # google_dns_record_set.workspace_dp will be created
+  + resource "google_dns_record_set" "workspace_dp" {
+      + deletion_policy = "DELETE"
+      + id              = (known after apply)
+      + managed_zone    = "databricks"
+      + name            = (known after apply)
+      + project         = "example-shared-vpc-host"
+      + rrdatas         = (known after apply)
+      + ttl             = 300
+      + type            = "A"
+    }
+  # google_dns_record_set.psc_auth will be created
+  + resource "google_dns_record_set" "psc_auth" {
+      + deletion_policy = "DELETE"
+      + id              = (known after apply)
+      + managed_zone    = "databricks"
+      + name            = "us-central1.psc-auth.gcp.databricks.com."
+      + project         = "example-shared-vpc-host"
+      + rrdatas         = (known after apply)
+      + ttl             = 300
+      + type            = "A"
+    }
+  # google_dns_record_set.relay_tunnel will be created
+  + resource "google_dns_record_set" "relay_tunnel" {
+      + deletion_policy = "DELETE"
+      + id              = (known after apply)
+      + managed_zone    = "databricks"
+      + name            = "tunnel.us-central1.gcp.databricks.com."
+      + project         = "example-shared-vpc-host"
+      + rrdatas         = (known after apply)
+      + ttl             = 300
+      + type            = "A"
+    }
+
+# Plan: 34 resources total. Unplaced: none

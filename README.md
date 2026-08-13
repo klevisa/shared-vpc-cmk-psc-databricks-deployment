@@ -18,7 +18,7 @@ compute + CMEK), and the **Databricks** control plane (its own projects). PSC is
 private wire between your VPC and Databricks — two endpoints: a **frontend** (UI/REST)
 and a **backend** (secure cluster-to-control-plane relay).
 
-![Shared VPC + PSC architecture](docs/architecture.svg)
+![Shared VPC + PSC architecture](docs/architecture.png)
 
 > Diagram source (editable Mermaid): [`docs/architecture.mmd`](docs/architecture.mmd)
 

@@ -52,7 +52,7 @@ it can't grant itself the rights it needs to create the host network and set IAM
 self-grant would be circular), so these are prerequisites, not template resources:
 
 - **Databricks account admin** on the account.
-- On the **service** project: `Owner` (or the granular equivalent) — to create the CMEK
+- On the **service** project: `Owner` (or the [granular least-privilege set](#appendix-least-privilege-setup-instead-of-owner)) — to create the CMEK
   key and let Databricks provision the workspace resources.
 - On the **host** project: enough to create + use the network, create the private DNS
   zone, and set subnet/KMS IAM — practically `roles/compute.networkAdmin` +
@@ -197,3 +197,47 @@ providers.
 
 > GCP specific: a GCP GSA federates to a Databricks **user**, not a service principal
 > — register it as a user, not an SP.
+
+
+---
+
+## Appendix: least-privilege setup (instead of `Owner`)
+
+Rather than granting the automation GSA `Owner`, scope it to specific **predefined**
+roles, plus a few one-time preconditions a **project admin** sets up (the GSA can't
+grant these to itself). Roles are based on the
+[Databricks lpw template](https://github.com/bhavink/databricks/tree/master/gcpdb4u/templates/terraform-scripts/lpw).
+
+### Granular roles
+
+- **Service project:** `roles/cloudkms.admin` (CMEK key + `setIamPolicy`),
+  `roles/resourcemanager.projectIamAdmin` (project-level role bindings),
+  `roles/serviceusage.serviceUsageConsumer` (read/verify enabled services).
+- **Host project:** `roles/compute.networkAdmin` (VPC, subnet, firewall, addresses,
+  PSC forwarding rules), `roles/compute.securityAdmin` (firewall),
+  `roles/dns.admin` (DNS zone/records + private-zone VPC bind),
+  `roles/resourcemanager.projectIamAdmin` (subnet IAM).
+
+> Use **predefined** roles, not a hand-built custom role: two permissions the deploy
+> needs — `compute.forwardingRules.pscCreate` and `dns.networks.bindPrivateDNSZone` —
+> cannot be added to a custom role (they are silently dropped), so a custom "creator"
+> role perpetually 403s.
+
+### One-time prerequisites (a project admin sets these up)
+
+1. **Enable the APIs.** GCP services are off by default in a project — you cannot
+   create a KMS key while Cloud KMS is disabled, DNS zones while the DNS API is off,
+   etc. Enable: `compute, iam, iamcredentials, cloudresourcemanager, serviceusage,
+   cloudkms, dns, storage`.
+
+2. **Create the GCP service agents before the CMEK grants.** The CMEK grants give
+   `cryptoKeyEncrypterDecrypter` to Google-managed service agents
+   (`service-<num>@compute-system…` and `service-<num>@gs-project-accounts…`). GCP
+   does not create these agents until their service is first touched, so on a fresh
+   project the grant fails with `400 … service account … does not exist`. Force-create
+   them first, e.g. `gcloud beta services identity create --service=storage.googleapis.com`
+   (and the same for `compute` and `cloudkms`).
+
+3. **`roles/iam.serviceAccountTokenCreator` on the GSA, for the runner.** The runner —
+   whoever invokes `terraform apply` (you, or a CI pipeline) — impersonates the GSA
+   rather than acting as itself; this role is what lets it do so.

@@ -172,3 +172,28 @@ terraform/
 
 terraform-plan-ordered.out   the plan's resources in creation-dependency order
 ```
+
+
+---
+
+## Appendix: the automation identity (GSA) vs Databricks account admin
+
+The service account this template impersonates (`google_service_account_email`)
+needs standing in **two separate systems**, granted independently — neither implies
+the other:
+
+- **Google Cloud** — it is a GCP *service account* with the IAM roles above; this is
+  what lets it create the VPC, subnets, KMS key, PSC endpoints, and DNS.
+- **Databricks account** — the *same* GSA must **also** be registered in the
+  Databricks account as a **user** (username = the GSA email) and granted **account
+  admin**, so the `databricks` provider's calls (workspace, network config, private
+  access settings, CMEK registration) are authorized.
+
+Being a GCP service account grants it nothing in Databricks. A human account admin
+performs the Databricks-side registration + account-admin grant **once** (nothing can
+grant the very first account admin — chicken-and-egg); afterward the GSA runs
+unattended. Terraform impersonates the one GSA for both the `google` and `databricks`
+providers.
+
+> GCP specific: a GCP GSA federates to a Databricks **user**, not a service principal
+> — register it as a user, not an SP.

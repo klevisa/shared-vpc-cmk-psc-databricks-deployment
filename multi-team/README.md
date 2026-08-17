@@ -20,7 +20,7 @@ operational index.
 
 > **Prerequisite:** the **host project already exists** (Phase 0 references it, does not
 > create it). One-time Databricks-side setup — registering the account and making the Data
-> Platform SA an account admin — is also assumed done; see [identity & access](../docs/identity-and-access.md).
+> Platform SA an account admin — is also assumed done.
 >
 > **Phase 5 (Enterprise Identity)** — SCIM/SSO + delegated-admin assignment — runs out of
 > band on its own timeline. See the runbook.

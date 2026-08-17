@@ -13,7 +13,6 @@ own least-privilege identity, wired together by output→input handoffs.
 - **[Deployment guide](multi-team/README.md)** — the configs, run order, handoffs, and commands.
 - **[Runbook](docs/multi-team-runbook.md)** — which team owns each phase and why the order matters.
 - **[Architecture](docs/architecture.md)** — the diagram, how PSC works, and how to test it.
-- **[Identity & access](docs/identity-and-access.md)** — the admin model, automation identities, and least-privilege roles.
 
 ## The configs
 

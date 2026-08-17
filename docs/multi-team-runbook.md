@@ -18,13 +18,14 @@ index (commands, the handoff table) see [`../multi-team/README.md`](../multi-tea
 | **0. Foundation** | `foundation/` — create the service project, enable APIs on both projects, establish the Shared VPC relationship (host enable + attach), provision the GCS service agent. The **host project already exists** | **Cloud Foundation / Landing Zone** | org/folder: `resourcemanager.projectCreator`, `billing.user`, `compute.xpnAdmin`, `resourcemanager.projectIamAdmin` |
 | **1. Host network** | `host-network/` — VPC, subnets, firewall, router, NAT, PSC IPs + forwarding rules, DNS **zone**, static service-agent subnet grants | **Network Engineering** | `compute.networkAdmin` + `compute.securityAdmin` + `dns.admin` on **HOST** |
 | **2. CMEK** | `service-cmek/` — keyring, key, grants to service-project compute-system + gs-project-accounts agents | **Cloud Security / KMS** | `cloudkms.admin` on **SERVICE** |
-| **3. Databricks account + workspace** | `databricks-account/` — VPC-endpoint regs, private access settings, network config, CMEK registration, workspace, metastore | **Data / Databricks Platform** | Databricks **account admin**; `serviceusage.serviceUsageConsumer` + read on **SERVICE** |
+| **3. Databricks account + workspace** | `databricks-account/` — VPC-endpoint regs, private access settings, network config, CMEK registration, workspace, metastore | **Data / Databricks Platform** | Databricks **account admin** — no GCP project roles (this phase only calls the account API) |
 | **4. Post-workspace handback** | `post-workspace/` — workspace-SA `networkUser` subnet grant + DNS **records** (4 A-records) | **Network Engineering / Cloud IAM** | `compute.networkAdmin` + `dns.admin` on **HOST** |
 | **5. Identity** | SCIM/SSO provisioning; delegated-admin assignment (`databricks_mws_permission_assignment`) | **Enterprise Identity / IT (Okta/Entra)** + Data Platform | IdP admin; account admin for the assignment |
 
-> The role names above are the least-privilege set. See
-> [`identity-and-access.md`](identity-and-access.md) for the full role breakdown and the
-> predefined-vs-custom-role caveats (`pscCreate`, `bindPrivateDNSZone`).
+> The role names above are the least-privilege set — use **predefined** roles, not a
+> hand-built custom role: two permissions the deploy needs — `compute.forwardingRules.pscCreate`
+> and `dns.networks.bindPrivateDNSZone` — can't be added to a custom role (they're silently
+> dropped), so a custom "creator" role perpetually 403s.
 
 ---
 
@@ -52,28 +53,29 @@ and **Phase 5 (SCIM/SSO)** runs on its own timeline entirely.
 
 ## Ordering with handoffs
 
+```mermaid
+flowchart TB
+    P0["Phase 0 · Foundation<br/>service project · APIs · Shared VPC · GCS agent"]
+    P1["Phase 1 · Network Eng<br/>VPC · subnets · PSC endpoints PENDING · DNS zone"]
+    P2["Phase 2 · Security / KMS<br/>CMEK key + agent grants"]
+    P3["Phase 3 · Data Platform<br/>register endpoints then ACCEPTED · workspace"]
+    P4["Phase 4 · Network / IAM<br/>workspace-SA subnet grant + DNS records"]
+    P5["Phase 5 · Identity<br/>out of band: SCIM / SSO"]
+
+    P0 -->|"service_project_id + number"| P1
+    P0 -->|"service_project_id + number"| P2
+    P1 -->|"host + vpc + node_subnet + PSC endpoint names"| P3
+    P2 -->|"cmek_key_id"| P3
+    P1 -->|"endpoint IPs + DNS zone"| P4
+    P3 -->|"gcp_workspace_sa + workspace_url"| P4
+    P5 -.->|"synced group as workspace ADMIN"| P3
 ```
-Phase 0  Foundation      ── create service project, enable APIs, Shared VPC host+attach, GCS agent
-             │  (host project already exists)   hands off: service_project_id (+number)
-     ┌───────┴───────────────┐
-Phase 1 Network             Phase 2 Security / KMS       ← run in parallel
-  VPC / subnet / FW / NAT      CMEK keyring + key
-  PSC endpoints (PENDING)      grants to service agents
-  DNS zone; agent subnet grants        │ hands off: cmek_key_id
-     │ hands off: workspace_pe, relay_pe (names),
-     │            frontend_pe_ip, backend_pe_ip, vpc, node_subnet, zone
-     └───────┬───────────────────────┘
-Phase 3  Data / Databricks Platform
-  endpoint regs → network config → CMEK reg → PAS → workspace
-  then: confirm PSC endpoints are now ACCEPTED
-             │ hands off: workspace_id, workspace_url, gcp_workspace_sa
-Phase 4  Network / Cloud IAM  (handback)
-  workspace-SA networkUser on host subnet  +  4 DNS A-records
-             → clusters can launch; workspace hostnames resolve to private IPs
-Phase 5  Enterprise Identity  (any time, out of band)
-  SCIM/SSO in Okta/Entra → users & groups sync into the Databricks ACCOUNT
-  then Data Platform: assign a synced group as workspace ADMIN
-```
+
+Phases 1 and 2 branch off Phase 0 with no edge between them, so they run in parallel.
+Registering the endpoints in Phase 3 is what flips the Phase-1 PSC forwarding rules from
+**PENDING** to **ACCEPTED**. Phase 4 is the handback that makes clusters able to launch and
+hostnames resolve. Phase 5 is out of band — once SCIM has synced a group, the Data Platform
+team assigns it as workspace `ADMIN` over the account API.
 
 ---
 
@@ -95,12 +97,6 @@ referenced; this config creates and wires everything else the later phases assum
    `400 does not exist`.
 
 **Handoff (outputs):** `service_project_id`, `service_project_number`, `host_project`.
-
-Two items are **not** in this config and are set up once, out of band:
-- Each downstream team's automation SA and its runner's `iam.serviceAccountTokenCreator`
-  (an IAM bootstrap the automation can't grant itself).
-- Registering the Databricks account and making the Data Platform SA an **account admin**
-  (a Databricks-side action — see [`identity-and-access.md`](identity-and-access.md)).
 
 ### Phase 1 — Network Engineering (`host-network/`)
 

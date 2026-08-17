@@ -15,7 +15,7 @@ No workspace admin is created — the account admin running this already has it 
 ## Pre-reqs
 
 - **Phases 0, 1, and 2 have run** — you have the service project (Phase 0), the network + PSC endpoints + VPC/subnet names (Phase 1), and the CMEK key id (Phase 2).
-- The impersonated SA is a **Databricks account admin** (a one-time setup — see [`../../docs/identity-and-access.md`](../../docs/identity-and-access.md)).
+- The impersonated SA is a **Databricks account admin** (a one-time setup done by a human account admin — nothing can grant the first account admin, so it's out of band).
 
 ## Privileges needed
 
@@ -71,4 +71,4 @@ This is where the workspace actually comes into being, and it happens entirely o
 
 The order inside the phase matters: we **register the CMEK key** (Phase 2's key id, for both storage and managed services), **register the two PSC endpoints** (referencing the host project and the Phase 1 endpoint names), set the **private access settings**, build the **network config** pointing at the host-project VPC and node subnet, and finally create the **workspace** with `cloud_resource_container` in the service project. Registering the endpoints is also what makes the *producer* (Databricks) accept the PSC connections — so after this apply, the forwarding rules Phase 1 created flip from **PENDING** to **ACCEPTED**.
 
-No **workspace admin** is provisioned here. The account admin running this apply already holds workspace-admin implicitly on every workspace it creates, so the workspace is administered the moment it exists. To grant a *delegated* admin (a human who shouldn't be a full account admin), sync them via SCIM and assign them over the account API — see [`../../docs/identity-and-access.md`](../../docs/identity-and-access.md). The workspace is not fully usable yet: clusters can't launch and hostnames don't resolve until **Phase 4** grants the workspace SA on the subnet and writes the DNS records.
+No **workspace admin** is provisioned here. The account admin running this apply already holds workspace-admin implicitly on every workspace it creates, so the workspace is administered the moment it exists. To grant a *delegated* admin (a human who shouldn't be a full account admin), sync them via SCIM into the account first, then assign them as workspace `ADMIN` over the account API (worked example in `databricks.tf`). The workspace is not fully usable yet: clusters can't launch and hostnames don't resolve until **Phase 4** grants the workspace SA on the subnet and writes the DNS records.

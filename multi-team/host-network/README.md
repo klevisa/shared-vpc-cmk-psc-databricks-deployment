@@ -35,15 +35,25 @@ The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that S
 
 ## Inputs
 
-Set in `terraform.tfvars`:
+Set in `terraform.tfvars`, grouped by where the value comes from:
 
-- `google_service_account_email` : the network SA this config impersonates
-- `vpc_network_project_id` : the existing **host** project id
-- `google_service_project_number` : the **service** project number *(from Phase 0 output `service_project_number`)* — used to build the service-agent emails for the subnet grants
-- `google_region` : region for every resource here
-- `vpc_name` / `node_subnet_name` / `node_subnet_cidr` / `pe_subnet_name` / `pe_subnet_cidr` : network names + CIDRs
+**⬅️ Carried over from a previous phase** — paste the upstream output, don't invent:
+
+- `vpc_network_project_id` : the existing **host** project id — the same one Phase 0 used (its `host_project` output)
+- `google_service_project_number` : the **service** project number — from **Phase 0** output `service_project_number`; used to build the service-agent emails for the subnet grants
+
+**✍️ Your decisions this phase** — names and sizes, pick them to fit your standards:
+
+- `vpc_name` / `node_subnet_name` / `pe_subnet_name` : resource names
+- `node_subnet_cidr` : node subnet size (see the sizing note under **What it does**)
+- `pe_subnet_cidr` : PSC subnet range (a `/28` is enough)
 - `workspace_pe` / `relay_pe` : names for the frontend / backend PSC endpoints
 - `workspace_pe_ip_name` / `relay_pe_ip_name` : names for their internal IPs
+- `google_service_account_email` : the network SA this config impersonates
+- `google_region` : the region — a decision, but it **must be the same** across every phase
+
+**📋 Fixed lookups** — not a choice; copy the exact value for your region:
+
 - `workspace_service_attachment` / `relay_service_attachment` : the region's Databricks PSC targets — frontend `plproxy-psc-endpoint-all-ports`, backend `ngrok-psc-endpoint` (from the Databricks region resource docs)
 
 ## Outputs

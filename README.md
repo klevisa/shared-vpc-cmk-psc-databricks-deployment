@@ -161,11 +161,9 @@ for how to add a *delegated* admin the federation-clean way.
 See `terraform-plan-ordered.out` for every resource block laid out in this dependency
 order.
 
-> **Deploying across multiple teams?** In a large org no single identity should hold
-> account-admin + Owner-on-service + network-admin-on-host at once. See
-> [`docs/multi-team-runbook.md`](docs/multi-team-runbook.md) for how to split this into
-> per-team root configs (Network / Security-KMS / Data Platform / Identity), the phase
-> ordering, and the cross-team handoffs.
+> **Note:** this branch is the all-in-one template (one team / one automation identity).
+> For the multi-team split — per-team root configs with least-privilege identities — see
+> the `main` branch.
 
 ---
 

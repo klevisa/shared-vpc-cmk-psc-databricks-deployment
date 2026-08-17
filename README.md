@@ -10,8 +10,7 @@ own least-privilege identity, wired together by output→input handoffs.
 
 ## Start here
 
-- **[Deployment guide](multi-team/README.md)** — the configs, run order, handoffs, and commands.
-- **[Runbook](docs/multi-team-runbook.md)** — which team owns each phase and why the order matters.
+- **[Deployment guide](multi-team/README.md)** — which team owns each phase, why the order matters, the cross-team handoffs, step-by-step, and commands.
 - **[Architecture](docs/architecture.md)** — the diagram, how PSC works, and how to test it.
 
 ## The configs

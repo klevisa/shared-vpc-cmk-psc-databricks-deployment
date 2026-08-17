@@ -7,7 +7,7 @@ Yahoo-style team names) the split is the recommended shape: no mature org grants
 single service account *account admin + Owner-on-service + network-admin-on-host +
 `xpnAdmin`* all at once, which is what the single-config version needs.
 
-The value of splitting is **eliminating the god-identity**: each root config runs
+The value of splitting is **eliminating the over-privileged identity**: each root config runs
 with its team's own roles, and teams hand off **data** (Terraform outputs), never
 shared credentials or shared state.
 
@@ -189,7 +189,7 @@ data "terraform_remote_state" "network" {
 ```
 
 This is what keeps credentials and state **per team** — the only thing that crosses a
-team boundary is published output data, never a shared god-identity or a shared state
+team boundary is published output data, never a shared over-privileged identity or a shared state
 file.
 
 ---

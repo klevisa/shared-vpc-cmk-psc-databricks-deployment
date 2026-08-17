@@ -17,7 +17,7 @@ Service Connect (PSC)**, and data is encrypted with a **customer-managed key (CM
 | **Multi-team** | [`multi-team/`](multi-team) | A large org where the network, security/KMS, Databricks-platform, and identity teams each own their slice with **least-privilege** identities. Four independent configs wired by output→input handoffs. |
 
 Same resources, same architecture — the multi-team form just splits them along team
-boundaries so no single god-identity is needed. Start with
+boundaries so no single over-privileged identity is needed. Start with
 [`multi-team/README.md`](multi-team/README.md) and
 [`docs/multi-team-runbook.md`](docs/multi-team-runbook.md). The rest of this page
 describes the all-in-one config.

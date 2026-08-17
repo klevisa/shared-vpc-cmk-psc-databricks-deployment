@@ -2,7 +2,7 @@
 
 The same workspace as the all-in-one [`../terraform/`](../terraform), but split into
 **four independent Terraform configs** so each team runs only its slice with only its
-own least-privilege identity. No single god-SA (account-admin + Owner-on-service +
+own least-privilege identity. No single over-privileged identity (account-admin + Owner-on-service +
 network-admin-on-host) is ever required.
 
 For the *why* and the full narrative, see

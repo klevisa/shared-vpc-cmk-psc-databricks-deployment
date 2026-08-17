@@ -70,8 +70,3 @@ Then hand the outputs to the next phases.
 Phase 0 exists so no later phase needs org-level power. The **host project** is the network team's existing shared network, so this config never creates or modifies it beyond enabling Shared VPC — it just references it. It **creates the service project** (the "tenant" for this one workspace), links billing, and turns on the APIs both projects need. GCP services are off by default, so without this step Phase 1 couldn't create a DNS zone, Phase 2 couldn't create a KMS key, and so on.
 
 It then **establishes the Shared VPC relationship** — enabling the host and attaching the service project — which is the platform capability that later lets a VM *owned by the service project* run on a *subnet owned by the host project* (Phase 1 grants the specific subnet permissions, Phase 4 grants the workspace SA). Finally it **provisions the service agents**: the GCS agent via a data source, and the compute agent implicitly by enabling the Compute API, so Phase 2's CMEK grants have real principals to bind to.
-
-Two setup items are deliberately **not** in this config, because they can't be self-granted:
-
-- Each downstream team's automation SA, and its runner's `roles/iam.serviceAccountTokenCreator` (an IAM bootstrap).
-- Registering the Databricks account and making the Data Platform SA an **account admin** — a Databricks-side action; see [`../../docs/identity-and-access.md`](../../docs/identity-and-access.md).

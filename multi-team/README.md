@@ -1,9 +1,9 @@
 # Multi-team deployment
 
-The same workspace as the all-in-one [`../terraform/`](../terraform), but split into
-**four independent Terraform configs** so each team runs only its slice with only its
-own least-privilege identity. No single over-privileged identity (account-admin + Owner-on-service +
-network-admin-on-host) is ever required.
+**Four independent Terraform configs** so each team runs only its slice with only its
+own least-privilege identity. No single over-privileged identity (account-admin +
+Owner-on-service + network-admin-on-host) is ever required. (An all-in-one, single-identity
+variant of the same resources lives on the `single-template` branch.)
 
 For the *why* and the full narrative, see
 [`../docs/multi-team-runbook.md`](../docs/multi-team-runbook.md). This page is the

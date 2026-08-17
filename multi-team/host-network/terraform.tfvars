@@ -2,12 +2,9 @@
 # Phase 1 — Network Engineering. ILLUSTRATIVE values — replace before applying.
 # ============================================================================
 google_service_account_email  = "network-automation@example-shared-vpc-host.iam.gserviceaccount.com"
-vpc_network_project_id        = "example-shared-vpc-host" # HOST
-google_project_name           = "example-databricks-svc"  # SERVICE (for association + agent emails)
-google_service_project_number = "111111111111"            # SERVICE project number
+vpc_network_project_id        = "example-shared-vpc-host" # EXISTING HOST project
+google_service_project_number = "111111111111"            # SERVICE project number (for agent emails)
 google_region                 = "us-central1"
-
-manage_shared_vpc_association = true # false if Cloud Foundation (Phase 0) already attached the projects
 
 vpc_name         = "example-vpc"
 node_subnet_name = "example-node-subnet"

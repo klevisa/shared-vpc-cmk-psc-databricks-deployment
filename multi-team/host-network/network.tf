@@ -1,22 +1,11 @@
 # -----------------------------------------------------------------------------
-# HOST-project network (Shared VPC). Owned by Network Engineering.
-# In a real Shared VPC the network team often PRE-CREATES the VPC/subnets and you
-# reference them with data sources; here they're created for a self-contained
-# illustration. Records for the DNS zone are added in Phase 4 (post-workspace).
+# VPC + subnets inside the EXISTING host project. Owned by Network Engineering.
+#
+# The host project itself and the Shared VPC association (host enablement +
+# service-project attach) already exist — Cloud Foundation owns them (Phase 0).
+# This config only creates the VPC and its subnets within that host project.
+# Records for the DNS zone are added in Phase 4 (post-workspace).
 # -----------------------------------------------------------------------------
-
-# ---- Shared VPC association (skip if Cloud Foundation already did it) ----
-resource "google_compute_shared_vpc_host_project" "host" {
-  count   = var.manage_shared_vpc_association ? 1 : 0
-  project = var.vpc_network_project_id
-}
-
-resource "google_compute_shared_vpc_service_project" "service" {
-  count           = var.manage_shared_vpc_association ? 1 : 0
-  host_project    = var.vpc_network_project_id
-  service_project = var.google_project_name
-  depends_on      = [google_compute_shared_vpc_host_project.host]
-}
 
 # ---- VPC + subnets ----
 resource "google_compute_network" "vpc" {

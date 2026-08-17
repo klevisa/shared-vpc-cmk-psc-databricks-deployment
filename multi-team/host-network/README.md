@@ -1,13 +1,15 @@
 # Phase 1 — host-network (Network Engineering)
 
-**Creates (HOST project):** VPC, node + PSC subnets, firewall, router/NAT, two PSC
-endpoints (frontend/backend), the private DNS **zone**, and the static `networkUser`
-subnet grants for the service project's compute agents. Optionally enables the Shared VPC
-association (`manage_shared_vpc_association`).
+**Creates (in the EXISTING HOST project):** VPC, node + PSC subnets, firewall, router/NAT,
+two PSC endpoints (frontend/backend), the private DNS **zone**, and the static
+`networkUser` subnet grants for the service project's compute agents.
+
+> The host project and the Shared VPC association (host enablement + service-project
+> attach) already exist — Cloud Foundation owns them (Phase 0). This config does not
+> create the project or toggle the association; it only builds the network inside the host.
 
 **Identity:** `compute.networkAdmin` + `compute.securityAdmin` + `dns.admin` on the HOST
-project (+ `compute.xpnAdmin` if managing the association). Impersonated via
-`google_service_account_email`.
+project. Impersonated via `google_service_account_email`.
 
 **Inputs:** project ids/number, region, network names/CIDRs, PSC endpoint names, region
 service attachments (all in `terraform.tfvars`).

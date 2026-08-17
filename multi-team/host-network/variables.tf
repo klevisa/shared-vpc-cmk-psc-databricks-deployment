@@ -1,32 +1,23 @@
 # ---- Identity ----
 variable "google_service_account_email" {
   type        = string
-  description = "NETWORK team's automation SA (impersonated). Standing roles: compute.networkAdmin + compute.securityAdmin + dns.admin on the HOST project. If manage_shared_vpc_association = true, also compute.xpnAdmin at the org/folder. Runner needs iam.serviceAccountTokenCreator on it."
+  description = "NETWORK team's automation SA (impersonated). Standing roles: compute.networkAdmin + compute.securityAdmin + dns.admin on the (existing) HOST project. Runner needs iam.serviceAccountTokenCreator on it."
 }
 
 # ---- Projects ----
+# NOTE: the host project and the Shared VPC association already exist (Cloud
+# Foundation, Phase 0). This config only creates the VPC + subnets within the host.
 variable "vpc_network_project_id" {
   type        = string
-  description = "HOST project id (owns the Shared VPC, subnets, firewall, PSC, DNS)."
-}
-variable "google_project_name" {
-  type        = string
-  description = "SERVICE project id — attached to the Shared VPC and referenced when building the service-agent emails for the subnet grants."
+  description = "EXISTING HOST project id — this config creates the VPC/subnets/firewall/PSC/DNS inside it."
 }
 variable "google_service_project_number" {
   type        = string
-  description = "SERVICE project NUMBER — used for the <num>@cloudservices and service-<num>@compute-system agent emails."
+  description = "SERVICE project NUMBER — used for the <num>@cloudservices and service-<num>@compute-system agent emails on the subnet grants."
 }
 variable "google_region" {
   type    = string
   default = "us-central1"
-}
-
-# ---- Shared VPC association ----
-variable "manage_shared_vpc_association" {
-  type        = bool
-  default     = true
-  description = "true = this config enables the host + attaches the service project (needs xpnAdmin). false = Cloud Foundation already did it (Phase 0)."
 }
 
 # ---- Network ----

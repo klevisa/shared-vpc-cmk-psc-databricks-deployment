@@ -18,9 +18,49 @@ compute + CMEK), and the **Databricks** control plane (its own projects). PSC is
 private wire between your VPC and Databricks — two endpoints: a **frontend** (UI/REST)
 and a **backend** (secure cluster-to-control-plane relay).
 
-![Shared VPC + PSC architecture](docs/architecture.png)
+```mermaid
+flowchart LR
+    USER["Admin / analyst<br/>browser + REST"]
 
-> Diagram source (editable Mermaid): [`docs/architecture.mmd`](docs/architecture.mmd)
+    subgraph HOST["HOST project: Shared VPC network"]
+        direction TB
+        DNS["Private DNS zone<br/>gcp.databricks.com<br/>resolves names to private IPs"]
+        subgraph NODE["node subnet 10.10.0.0/24"]
+            VM["Workspace cluster VMs (NPIP)<br/>owned by SERVICE project,<br/>placed here via networkUser"]
+        end
+        subgraph PE["PSC subnet 10.10.1.0/28"]
+            FE["Frontend PSC endpoint<br/>fwd rule + internal IP"]
+            BE["Backend PSC endpoint<br/>fwd rule + internal IP"]
+        end
+        FW["Firewall<br/>internal + node to psc"]
+    end
+
+    subgraph SVC["SERVICE project: Databricks compute and data"]
+        direction TB
+        WSSA["Workspace SA<br/>db-ID@prod-gcp-REGION<br/>launches cluster VMs"]
+        KMS["CMEK key"]
+        DATA["Workspace GCE disks + GCS<br/>CMEK-encrypted"]
+    end
+
+    subgraph DBX["Databricks: owned projects"]
+        direction TB
+        PLPROXY["plproxy service attachment<br/>FRONTEND: UI / REST"]
+        NGROK["ngrok service attachment<br/>BACKEND: cluster relay"]
+        ACCT["Account API<br/>accounts.gcp.databricks.com"]
+    end
+
+    USER -->|"workspace URL, 443"| FE
+    VM -->|"resolve workspace host"| DNS
+    DNS -.->|"private IP"| FE
+    DNS -.->|"private IP"| BE
+    VM -->|"REST / artifacts, 443"| FE
+    VM -->|"secure cluster relay, 6666"| BE
+    FE ==>|"PSC"| PLPROXY
+    BE ==>|"PSC"| NGROK
+    KMS -->|"encrypts"| DATA
+    WSSA -.->|"networkUser on node subnet"| NODE
+    ACCT -.->|"provisions"| SVC
+```
 
 **How PSC works here:** your VPC creates two PSC *endpoints* (consumer side); each
 targets a Databricks *service attachment* (producer side). The **frontend** carries
@@ -35,7 +75,7 @@ inside the VPC everything resolves to `10.10.x` and never leaves the private pat
 | Network | **Host** | VPC, node + psc subnets, firewall, router/NAT, PSC IPs + forwarding rules, private DNS zone + records |
 | Compute / data | **Service** | workspace GCE/GCS (via account API), CMEK key + storage-agent grants |
 | Shared VPC glue | **Host** | host enablement + service-project attach, `compute.networkUser` on the subnet |
-| Account objects | **Account** | 2 VPC endpoints, private access settings, network config, CMEK registration, workspace, admin user |
+| Account objects | **Account** | 2 VPC endpoints, private access settings, network config, CMEK registration, workspace |
 
 ---
 
@@ -52,7 +92,7 @@ it can't grant itself the rights it needs to create the host network and set IAM
 self-grant would be circular), so these are prerequisites, not template resources:
 
 - **Databricks account admin** on the account.
-- On the **service** project: `Owner` (or the [granular least-privilege set](#appendix-least-privilege-setup-instead-of-owner)) — to create the CMEK
+- On the **service** project: `Owner` (or the granular equivalent) — to create the CMEK
   key and let Databricks provision the workspace resources.
 - On the **host** project: enough to create + use the network, create the private DNS
   zone, and set subnet/KMS IAM — practically `roles/compute.networkAdmin` +
@@ -63,8 +103,10 @@ self-grant would be circular), so these are prerequisites, not template resource
   done out of band).
 - Whoever runs Terraform needs **Token Creator** on the automation SA.
 
-Impersonation is also what lets the `databricks.workspace` provider authenticate to a
-brand-new workspace with no browser login, so the admin-user step runs in the same apply.
+This template talks **only** to the Databricks account API (`accounts.gcp.databricks.com`);
+it never needs to reach the (private) workspace endpoint, which is what keeps it working
+cleanly with `public_access_enabled = false`. See **Identity & workspace admins** for how
+admin access is handled.
 
 > The template does **not** grant the automation SA its own host-project network roles
 > (that would be circular). It only manages IAM for *other* principals — the
@@ -111,12 +153,56 @@ with 4 A-records (workspace URL / `dp-` / `psc-auth` → frontend IP; `tunnel.<r
 backend IP). The zone is authoritative for that domain **inside the VPC**, so these 4 are
 the complete set of `gcp.databricks.com` names resolvable there.
 
-**Workspace admin** — the admin user is added to the workspace `admins` group via the
-impersonation-based workspace provider. (Account admins have workspace-admin access
-implicitly; this is for a delegated, non-account-admin admin.)
+**Workspace admin** — *not provisioned by this template.* The account admin that runs
+the apply already has workspace-admin implicitly on every workspace it creates, so the
+workspace is administered the moment it exists. See **Identity & workspace admins** below
+for how to add a *delegated* admin the federation-clean way.
 
 See `terraform-plan-ordered.out` for every resource block laid out in this dependency
 order.
+
+> **Deploying across multiple teams?** In a large org no single identity should hold
+> account-admin + Owner-on-service + network-admin-on-host at once. See
+> [`docs/multi-team-runbook.md`](docs/multi-team-runbook.md) for how to split this into
+> per-team root configs (Network / Security-KMS / Data Platform / Identity), the phase
+> ordering, and the cross-team handoffs.
+
+---
+
+## Identity & workspace admins
+
+There are **two different admins**, at two scopes — the template *requires* one and does
+*not* create the other:
+
+| | **Account admin** | **Workspace admin** |
+|---|---|---|
+| Scope | Whole Databricks account | This one workspace |
+| Template's relationship | **Requires** it (prerequisite) | Does **not** create one |
+| Why | Authorization to call the account API and create the workspace | Give a delegated human admin access to just this workspace |
+| Can the template make it? | No — chicken/egg (needs account admin to run) | Yes, but intentionally omitted |
+| Needed for a working workspace? | Yes | No — the account admin already covers it |
+
+The identity running the template is an **account admin**, and account admins hold
+workspace-admin implicitly on every workspace they create. So a fresh workspace is fully
+administered with no extra resource — which is why this template provisions **no**
+workspace admin (and never has to reach the private workspace endpoint).
+
+**To add a delegated admin** — a human who should administer *this* workspace without
+being a full account admin — do it in this order:
+
+1. **SCIM first.** Configure SCIM in your IdP (Okta/Entra) so the user/group syncs into
+   the Databricks **account**. This is account-scoped, one-time, and done out of band
+   *before* apply — it is not part of workspace provisioning. An identity must exist at
+   the account before it can be assigned to a workspace.
+2. **Assign, don't create.** Reference the synced identity read-only and bind it as
+   workspace `ADMIN` over the account API (see the worked example in `databricks.tf`).
+   Prefer assigning a **group** so admins are managed in the IdP, not in Terraform. Don't
+   manage SCIM-synced users/groups as Terraform resources — that fights the IdP for
+   ownership.
+
+Both steps stay on `accounts.gcp.databricks.com`, so delegated-admin assignment works even
+when `public_access_enabled = false`. There's no bootstrap risk: until SCIM is live, the
+account admin is still a full workspace admin, so you're never locked out.
 
 ---
 
@@ -166,78 +252,9 @@ terraform/
 ├── psc.tf               HOST: PSC IPs + forwarding rules (+ status outputs)
 ├── kms.tf               SERVICE: CMEK key + storage service-agent grants
 ├── iam-shared-vpc.tf    subnet networkUser grants (service agents + workspace SA)
-├── databricks.tf        account: endpoints, PAS, network, CMEK reg, workspace, admin
+├── databricks.tf        account: endpoints, PAS, network, CMEK reg, workspace (+ delegated-admin how-to)
 ├── dns.tf               HOST: private zone + 4 A-records
 └── outputs.tf           workspace_url/id, projects, PSC IPs, metastore
 
 terraform-plan-ordered.out   the plan's resources in creation-dependency order
 ```
-
-
----
-
-## Appendix: the automation identity (GSA) vs Databricks account admin
-
-The service account this template impersonates (`google_service_account_email`)
-needs standing in **two separate systems**, granted independently — neither implies
-the other:
-
-- **Google Cloud** — it is a GCP *service account* with the IAM roles above; this is
-  what lets it create the VPC, subnets, KMS key, PSC endpoints, and DNS.
-- **Databricks account** — the *same* GSA must **also** be registered in the
-  Databricks account as a **user** (username = the GSA email) and granted **account
-  admin**, so the `databricks` provider's calls (workspace, network config, private
-  access settings, CMEK registration) are authorized.
-
-Being a GCP service account grants it nothing in Databricks. A human account admin
-performs the Databricks-side registration + account-admin grant **once** (nothing can
-grant the very first account admin — chicken-and-egg); afterward the GSA runs
-unattended. Terraform impersonates the one GSA for both the `google` and `databricks`
-providers.
-
-> GCP specific: a GCP GSA federates to a Databricks **user**, not a service principal
-> — register it as a user, not an SP.
-
-
----
-
-## Appendix: least-privilege setup (instead of `Owner`)
-
-Rather than granting the automation GSA `Owner`, scope it to specific **predefined**
-roles, plus a few one-time preconditions a **project admin** sets up (the GSA can't
-grant these to itself). Roles are based on the
-[Databricks lpw template](https://github.com/bhavink/databricks/tree/master/gcpdb4u/templates/terraform-scripts/lpw).
-
-### Granular roles
-
-- **Service project:** `roles/cloudkms.admin` (CMEK key + `setIamPolicy`),
-  `roles/resourcemanager.projectIamAdmin` (project-level role bindings),
-  `roles/serviceusage.serviceUsageConsumer` (read/verify enabled services).
-- **Host project:** `roles/compute.networkAdmin` (VPC, subnet, firewall, addresses,
-  PSC forwarding rules), `roles/compute.securityAdmin` (firewall),
-  `roles/dns.admin` (DNS zone/records + private-zone VPC bind),
-  `roles/resourcemanager.projectIamAdmin` (subnet IAM).
-
-> Use **predefined** roles, not a hand-built custom role: two permissions the deploy
-> needs — `compute.forwardingRules.pscCreate` and `dns.networks.bindPrivateDNSZone` —
-> cannot be added to a custom role (they are silently dropped), so a custom "creator"
-> role perpetually 403s.
-
-### One-time prerequisites (a project admin sets these up)
-
-1. **Enable the APIs.** GCP services are off by default in a project — you cannot
-   create a KMS key while Cloud KMS is disabled, DNS zones while the DNS API is off,
-   etc. Enable: `compute, iam, iamcredentials, cloudresourcemanager, serviceusage,
-   cloudkms, dns, storage`.
-
-2. **Create the GCP service agents before the CMEK grants.** The CMEK grants give
-   `cryptoKeyEncrypterDecrypter` to Google-managed service agents
-   (`service-<num>@compute-system…` and `service-<num>@gs-project-accounts…`). GCP
-   does not create these agents until their service is first touched, so on a fresh
-   project the grant fails with `400 … service account … does not exist`. Force-create
-   them first, e.g. `gcloud beta services identity create --service=storage.googleapis.com`
-   (and the same for `compute` and `cloudkms`).
-
-3. **`roles/iam.serviceAccountTokenCreator` on the GSA, for the runner.** The runner —
-   whoever invokes `terraform apply` (you, or a CI pipeline) — impersonates the GSA
-   rather than acting as itself; this role is what lets it do so.

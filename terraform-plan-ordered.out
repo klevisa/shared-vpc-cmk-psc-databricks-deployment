@@ -24,7 +24,7 @@
       + upper       = false
     }
 
-Plan: 34 to add, 0 to change, 0 to destroy.
+Plan: 32 to add, 0 to change, 0 to destroy.
 
 Changes to Outputs:
   + backend_pe_ip        = (known after apply)
@@ -548,8 +548,13 @@ Changes to Outputs:
     }
 
 # ==========================================================================
-# LAYER 11 — post-workspace: workspace-SA subnet grant + admin user
+# LAYER 11 — post-workspace: workspace-SA subnet grant
 # ==========================================================================
+# NOTE: no workspace-admin resources are created. The account admin that runs
+# this apply already holds workspace-admin implicitly on the workspace it
+# creates. A delegated workspace admin, if wanted, is added out of band via a
+# SCIM-synced identity + databricks_mws_permission_assignment on the account
+# provider — see databricks.tf and the README "Identity & workspace admins".
   # google_compute_subnetwork_iam_member.workspace_sa_network_user will be created
   + resource "google_compute_subnetwork_iam_member" "workspace_sa_network_user" {
       + etag       = (known after apply)
@@ -559,32 +564,6 @@ Changes to Outputs:
       + region     = "us-central1"
       + role       = "roles/compute.networkUser"
       + subnetwork = "example-node-subnet"
-    }
-  # databricks_user.admin will be created
-  + resource "databricks_user" "admin" {
-      + acl_principal_id           = (known after apply)
-      + active                     = true
-      + allow_cluster_create       = false
-      + allow_instance_pool_create = false
-      + databricks_sql_access      = false
-      + disable_as_user_deletion   = (known after apply)
-      + display_name               = (known after apply)
-      + home                       = (known after apply)
-      + id                         = (known after apply)
-      + repos                      = (known after apply)
-      + user_name                  = "databricks-admin@example.com"
-      + workspace_access           = false
-      + workspace_consume          = false
-
-      + provider_config (known after apply)
-    }
-  # databricks_group_member.admin_member will be created
-  + resource "databricks_group_member" "admin_member" {
-      + group_id  = (known after apply)
-      + id        = (known after apply)
-      + member_id = (known after apply)
-
-      + provider_config (known after apply)
     }
 
 # ==========================================================================
@@ -665,4 +644,4 @@ Changes to Outputs:
       + type            = "A"
     }
 
-# Plan: 34 resources total. Unplaced: none
+# Plan: 32 resources total. Unplaced: none

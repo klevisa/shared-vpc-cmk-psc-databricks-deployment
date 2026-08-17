@@ -106,28 +106,31 @@ resource "databricks_metastore_assignment" "this" {
 }
 
 # -----------------------------------------------------------------------------
-# Workspace-scoped: add the admin user to the workspace `admins` group.
-# Uses the impersonation-based workspace provider, so it works against a fresh
-# workspace with no browser login. NOTE: if public_access_enabled = false, the
-# machine running Terraform must be able to reach the private workspace endpoint
-# (i.e. run from inside/peered to the VPC), otherwise apply these from within the
-# network or flip public_access_enabled = true. Account admins get workspace-admin
-# access implicitly regardless of this block.
+# Workspace admin: intentionally NOT provisioned here.
+#
+# The account admin that runs this template already holds workspace-admin
+# implicitly on every workspace it creates, so the workspace is fully
+# administered the moment it exists. No bootstrap admin is required, and the
+# template never needs to reach the (private) workspace endpoint.
+#
+# To grant a DELEGATED workspace admin (a human who should NOT be a full account
+# admin), do it the federation-clean way, entirely over the account API:
+#   1. Configure SCIM in your IdP so the user/group syncs into the Databricks
+#      ACCOUNT first (one-time, account-scoped, done out of band before apply).
+#   2. Reference the synced identity read-only and assign it, e.g.:
+#
+#        data "databricks_group" "ws_admins" {
+#          provider     = databricks.accounts
+#          display_name = "platform-admins"   # synced from your IdP
+#        }
+#        resource "databricks_mws_permission_assignment" "admins" {
+#          provider     = databricks.accounts
+#          workspace_id = databricks_mws_workspaces.this.workspace_id
+#          principal_id = data.databricks_group.ws_admins.id
+#          permissions  = ["ADMIN"]
+#        }
+#
+# Don't manage SCIM-synced users/groups as Terraform resources — reference them
+# and assign. This keeps everything on accounts.gcp.databricks.com (so it works
+# with public_access_enabled = false) and avoids fighting the IdP over identity.
 # -----------------------------------------------------------------------------
-data "databricks_group" "admins" {
-  provider     = databricks.workspace
-  depends_on   = [databricks_mws_workspaces.this]
-  display_name = "admins"
-}
-
-resource "databricks_user" "admin" {
-  provider   = databricks.workspace
-  depends_on = [databricks_mws_workspaces.this]
-  user_name  = var.databricks_admin_user
-}
-
-resource "databricks_group_member" "admin_member" {
-  provider  = databricks.workspace
-  group_id  = data.databricks_group.admins.id
-  member_id = databricks_user.admin.id
-}

@@ -40,10 +40,6 @@ variable "additional_network_user_service_accounts" {
 # ---- Databricks account / workspace ----
 variable "databricks_account_id" { type = string }
 variable "databricks_workspace_name" { type = string }
-variable "databricks_admin_user" {
-  type        = string
-  description = "Admin user email (must already exist at the Databricks account level)."
-}
 variable "metastore_id" {
   type        = string
   default     = ""

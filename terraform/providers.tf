@@ -10,14 +10,16 @@
 # A single google / google-beta provider is used; host-project resources set
 # `project = var.vpc_network_project_id` explicitly to place them in the host.
 #
-# Databricks account + workspace auth uses Google service-account IMPERSONATION
+# Databricks ACCOUNT auth uses Google service-account IMPERSONATION
 # (var.google_service_account_email). That SA must be:
 #   - an account admin on the Databricks account,
 #   - Owner (or the granular equivalent) on the SERVICE project,
 #   - compute.networkUser + compute.networkViewer on the HOST project,
 # and the caller running Terraform must have Token Creator on that SA.
-# (Impersonation lets the workspace-scoped provider authenticate to a brand-new
-#  workspace without a browser login — see service-account note in README.)
+# (This template talks ONLY to the account API — accounts.gcp.databricks.com —
+#  so it never needs to reach the private workspace endpoint. A delegated
+#  workspace admin, if you want one, is assigned over the account API too; see
+#  the note in databricks.tf.)
 # -----------------------------------------------------------------------------
 
 provider "google" {
@@ -34,11 +36,5 @@ provider "databricks" {
   alias                  = "accounts"
   host                   = "https://accounts.gcp.databricks.com"
   account_id             = var.databricks_account_id
-  google_service_account = var.google_service_account_email
-}
-
-provider "databricks" {
-  alias                  = "workspace"
-  host                   = databricks_mws_workspaces.this.workspace_url
   google_service_account = var.google_service_account_email
 }

@@ -24,7 +24,6 @@ additional_network_user_service_accounts = [
 # ---- Databricks ----
 databricks_account_id     = "00000000-0000-0000-0000-000000000000" # example account id
 databricks_workspace_name = "example-prod-ws"
-databricks_admin_user     = "databricks-admin@example.com"
 metastore_id              = "" # empty -> rely on auto-assignment
 
 public_access_enabled = false # fully private (PSC-only). See README for the tradeoff.

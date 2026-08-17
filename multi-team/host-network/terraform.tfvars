@@ -3,7 +3,7 @@
 # ============================================================================
 google_service_account_email  = "network-automation@example-shared-vpc-host.iam.gserviceaccount.com"
 vpc_network_project_id        = "example-shared-vpc-host" # EXISTING HOST project
-google_service_project_number = "111111111111"            # SERVICE project number (for agent emails)
+google_service_project_number = "111111111111"            # from Phase 0 output service_project_number
 google_region                 = "us-central1"
 
 vpc_name         = "example-vpc"

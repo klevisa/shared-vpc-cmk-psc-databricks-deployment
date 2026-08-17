@@ -7,7 +7,7 @@ google_service_account_email = "databricks-automation@example-databricks-svc.iam
 
 databricks_account_id     = "00000000-0000-0000-0000-000000000000"
 databricks_workspace_name = "example-prod-ws"
-google_project_name       = "example-databricks-svc" # SERVICE
+google_project_name       = "example-databricks-svc" # from Phase 0 output service_project_id
 google_region             = "us-central1"
 public_access_enabled     = false
 metastore_id              = ""

@@ -1,32 +1,30 @@
-# Multi-team runbook — splitting this deployment across an org
+# Multi-team runbook
 
-This template can be deployed as one config by a single all-powerful automation
-identity, or **split across teams** so each team runs only its slice with only its
-own least-privilege identity. For a large organization (the examples below use
-Yahoo-style team names) the split is the recommended shape: no mature org grants a
-single service account *account admin + Owner-on-service + network-admin-on-host +
-`xpnAdmin`* all at once, which is what the single-config version needs.
+This deployment is **split across teams** — each team runs one Terraform config with only
+its own least-privilege identity, and teams hand off **data** (Terraform outputs), never
+shared credentials or shared state. This is the shape a large organization needs: no single
+service account should hold *account admin + Owner-on-service + network-admin-on-host +
+`xpnAdmin`* all at once.
 
-The value of splitting is **eliminating the over-privileged identity**: each root config runs
-with its team's own roles, and teams hand off **data** (Terraform outputs), never
-shared credentials or shared state.
+This page explains which team owns each phase and why the order matters. For the operational
+index (commands, the handoff table) see [`../multi-team/README.md`](../multi-team/README.md).
 
 ---
 
 ## Team ↔ slice map
 
-| Slice | Files / resources | Team (Yahoo-style) | Standing identity it needs |
+| Slice | Config / resources | Team | Standing identity it needs |
 |---|---|---|---|
-| **0. Foundation** | project vending, API enablement, Shared VPC host enable + service attach (`roles/compute.xpnAdmin`), Google service-agent creation, one-time Databricks account registration | **Cloud Foundation / Landing Zone (CCoE)** | Org/folder admin |
-| **1. Host network** | `network.tf` (VPC, subnets, firewall, router, NAT), `psc.tf` (PSC IPs + forwarding rules), `dns.tf` **zone only**, static service-agent subnet grants from `iam.tf` | **Network Engineering** | `compute.networkAdmin` + `compute.securityAdmin` + `dns.admin` on **HOST** |
-| **2. CMEK** | `kms.tf` (keyring, key, grants to service-project compute-system + gs-project-accounts agents) | **Cloud Security ("The Paranoids") / KMS** | `cloudkms.admin` on **SERVICE** |
-| **3. Databricks account + workspace** | `databricks.tf` (VPC-endpoint regs, private access settings, network config, CMEK registration, workspace, metastore) | **Data / Databricks Platform** | Databricks **account admin**; `serviceusage.serviceUsageConsumer` + read on **SERVICE** |
-| **4. Post-workspace handback** | workspace-SA `networkUser` subnet grant (`iam.tf`), `dns.tf` **records** (4 A-records) | **Network Engineering / Cloud IAM** | `compute.networkAdmin` + `dns.admin` on **HOST** |
+| **0. Foundation** | `foundation/` — create the service project, enable APIs on both projects, establish the Shared VPC relationship (host enable + attach), provision the GCS service agent. The **host project already exists** | **Cloud Foundation / Landing Zone** | org/folder: `resourcemanager.projectCreator`, `billing.user`, `compute.xpnAdmin`, `resourcemanager.projectIamAdmin` |
+| **1. Host network** | `host-network/` — VPC, subnets, firewall, router, NAT, PSC IPs + forwarding rules, DNS **zone**, static service-agent subnet grants | **Network Engineering** | `compute.networkAdmin` + `compute.securityAdmin` + `dns.admin` on **HOST** |
+| **2. CMEK** | `service-cmek/` — keyring, key, grants to service-project compute-system + gs-project-accounts agents | **Cloud Security / KMS** | `cloudkms.admin` on **SERVICE** |
+| **3. Databricks account + workspace** | `databricks-account/` — VPC-endpoint regs, private access settings, network config, CMEK registration, workspace, metastore | **Data / Databricks Platform** | Databricks **account admin**; `serviceusage.serviceUsageConsumer` + read on **SERVICE** |
+| **4. Post-workspace handback** | `post-workspace/` — workspace-SA `networkUser` subnet grant + DNS **records** (4 A-records) | **Network Engineering / Cloud IAM** | `compute.networkAdmin` + `dns.admin` on **HOST** |
 | **5. Identity** | SCIM/SSO provisioning; delegated-admin assignment (`databricks_mws_permission_assignment`) | **Enterprise Identity / IT (Okta/Entra)** + Data Platform | IdP admin; account admin for the assignment |
 
-> The role names above are the least-privilege set. See the README appendix
-> "Least-privilege setup" for the predefined-vs-custom-role caveats
-> (`pscCreate`, `bindPrivateDNSZone`).
+> The role names above are the least-privilege set. See
+> [`identity-and-access.md`](identity-and-access.md) for the full role breakdown and the
+> predefined-vs-custom-role caveats (`pscCreate`, `bindPrivateDNSZone`).
 
 ---
 
@@ -55,8 +53,8 @@ and **Phase 5 (SCIM/SSO)** runs on its own timeline entirely.
 ## Ordering with handoffs
 
 ```
-Phase 0  Foundation      ── projects, APIs, Shared VPC attach, service agents, account admin
-             │  hands off: host_project, service_project(+number), "Shared VPC attached"
+Phase 0  Foundation      ── create service project, enable APIs, Shared VPC host+attach, GCS agent
+             │  (host project already exists)   hands off: service_project_id (+number)
      ┌───────┴───────────────┐
 Phase 1 Network             Phase 2 Security / KMS       ← run in parallel
   VPC / subnet / FW / NAT      CMEK keyring + key
@@ -81,25 +79,28 @@ Phase 5  Enterprise Identity  (any time, out of band)
 
 ## Step-by-step
 
-### Phase 0 — Cloud Foundation / Landing Zone (prerequisites)
+### Phase 0 — Cloud Foundation / Landing Zone (`foundation/`)
 
-1. Vend the **host** project and the **service** project.
-2. Enable the required APIs on both (compute, dns, cloudkms, iam, serviceusage; on the
-   service project the Databricks-managed APIs it will need).
-3. **Shared VPC**: enable the host project as a Shared VPC host and **attach** the
-   service project. Requires `roles/compute.xpnAdmin` at the org/folder. The Phase 1
-   config does **not** manage this — it creates the VPC/subnets inside the already-attached
-   host project.
-4. **Trigger creation of the Google service agents** on the service project
-   (e.g. by enabling the APIs / a no-op resource), so Phase 2's CMEK IAM grants don't
-   fail with `400 does not exist`.
-5. Grant each downstream team's automation SA its standing least-privilege roles, and
-   grant the CI runners `roles/iam.serviceAccountTokenCreator` on those SAs.
-6. Register the Databricks account (one-time) and make the **Data Platform** team's
-   identity a Databricks **account admin**.
+Runs with an org/folder-level identity. The **host project already exists** and is only
+referenced; this config creates and wires everything else the later phases assume:
 
-**Handoff:** `host_project_id`, `service_project_id`, `service_project_number`,
-confirmation that Shared VPC is attached, "account admin granted."
+1. **Create the service project** (`google_project`) under an org or folder, linked to a
+   billing account.
+2. **Enable the APIs** on both the host and the service project (`compute, dns, cloudkms,
+   iam, iamcredentials, cloudresourcemanager, serviceusage, storage`).
+3. **Establish the Shared VPC relationship** — enable the host as a Shared VPC host and
+   **attach** the service project (`roles/compute.xpnAdmin`).
+4. **Provision the service agents** — the GCS agent via a data source, and the compute
+   agent by enabling the Compute API — so Phase 2's CMEK grants don't fail with
+   `400 does not exist`.
+
+**Handoff (outputs):** `service_project_id`, `service_project_number`, `host_project`.
+
+Two items are **not** in this config and are set up once, out of band:
+- Each downstream team's automation SA and its runner's `iam.serviceAccountTokenCreator`
+  (an IAM bootstrap the automation can't grant itself).
+- Registering the Databricks account and making the Data Platform SA an **account admin**
+  (a Databricks-side action — see [`identity-and-access.md`](identity-and-access.md)).
 
 ### Phase 1 — Network Engineering (`host-network/`)
 
@@ -201,13 +202,13 @@ phase, each with its own state, backend, and team identity:
 
 ```
 multi-team/
-├── host-network/        # Phase 1 — Network Eng      (host-project network identity)
-├── service-cmek/        # Phase 2 — Security / KMS   (service-project cloudkms.admin)
-├── databricks-account/  # Phase 3 — Data Platform    (account-admin identity)
-└── post-workspace/      # Phase 4 — Network / IAM    (host-project network identity)
+├── foundation/          # Phase 0 — Cloud Foundation  (org/folder identity)
+├── host-network/        # Phase 1 — Network Eng       (host-project network identity)
+├── service-cmek/        # Phase 2 — Security / KMS    (service-project cloudkms.admin)
+├── databricks-account/  # Phase 3 — Data Platform     (account-admin identity)
+└── post-workspace/      # Phase 4 — Network / IAM     (host-project network identity)
 ```
 
 Each downstream config takes the upstream outputs as plain input variables (see each
 folder's `terraform.tfvars`), or wire them via `terraform_remote_state` — see
-[`../multi-team/README.md`](../multi-team/README.md). An all-in-one, single-identity
-variant of the same resources lives on the `single-template` branch.
+[`../multi-team/README.md`](../multi-team/README.md).

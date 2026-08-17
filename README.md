@@ -5,9 +5,22 @@ Terraform to stand up a **most-secure** Databricks workspace on GCP using a
 and storage live in a **service project**, all traffic to Databricks rides **Private
 Service Connect (PSC)**, and data is encrypted with a **customer-managed key (CMEK)**.
 
-> **Illustrative values.** All project IDs, names, CIDRs, the account ID, and the
-> admin email in `terraform.tfvars` are examples — replace them before applying.
-> The config is `terraform validate`-clean and is intended as a reference blueprint.
+> **Illustrative values.** All project IDs, names, CIDRs, and the account ID in
+> `terraform.tfvars` are examples — replace them before applying. Every config here is
+> `terraform validate`-clean and is intended as a reference blueprint.
+
+## Two ways to deploy
+
+| Mode | Where | Use when |
+|---|---|---|
+| **All-in-one** | [`terraform/`](terraform) | One team / one automation identity owns the whole stack. Simplest to read and apply. |
+| **Multi-team** | [`multi-team/`](multi-team) | A large org where the network, security/KMS, Databricks-platform, and identity teams each own their slice with **least-privilege** identities. Four independent configs wired by output→input handoffs. |
+
+Same resources, same architecture — the multi-team form just splits them along team
+boundaries so no single god-identity is needed. Start with
+[`multi-team/README.md`](multi-team/README.md) and
+[`docs/multi-team-runbook.md`](docs/multi-team-runbook.md). The rest of this page
+describes the all-in-one config.
 
 ---
 

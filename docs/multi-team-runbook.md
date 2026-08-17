@@ -194,14 +194,21 @@ file.
 
 ---
 
-## Physical layout (proposed)
+## Physical layout
+
+The split is implemented under [`../multi-team/`](../multi-team) — one root config per
+phase, each with its own state, backend, and team identity:
 
 ```
-host-network/        # Phase 1 — Network Eng      (own state, host-project identity)
-service-cmek/        # Phase 2 — Security / KMS   (own state, service-project identity)
-databricks-account/  # Phase 3 — Data Platform    (own state, account-admin identity)
-post-workspace/      # Phase 4 — Network / IAM    (own state, host-project identity)
+multi-team/
+├── host-network/        # Phase 1 — Network Eng      (host-project network identity)
+├── service-cmek/        # Phase 2 — Security / KMS   (service-project cloudkms.admin)
+├── databricks-account/  # Phase 3 — Data Platform    (account-admin identity)
+└── post-workspace/      # Phase 4 — Network / IAM    (host-project network identity)
 ```
 
-The single-config version in `terraform/` remains valid for a one-team/one-identity
-deployment; the split above is the multi-team form of the same resources.
+Each downstream config takes the upstream outputs as plain input variables (see each
+folder's `terraform.tfvars`), or wire them via `terraform_remote_state` — see
+[`../multi-team/README.md`](../multi-team/README.md). The single-config version in
+[`../terraform/`](../terraform) remains valid for a one-team/one-identity deployment; the
+split is the multi-team form of the same resources.

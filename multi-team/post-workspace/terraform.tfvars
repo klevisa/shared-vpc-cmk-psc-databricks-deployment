@@ -17,7 +17,3 @@ backend_pe_ip     = "10.10.1.3"
 # ---- from Phase 3 (databricks-account) ----
 gcp_workspace_sa = "db-1234567890123456@prod-gcp-us-central1.iam.gserviceaccount.com"
 workspace_url    = "https://1234567890123456.7.gcp.databricks.com"
-
-additional_network_user_service_accounts = [
-  # "service-111111111111@container-engine-robot.iam.gserviceaccount.com",
-]

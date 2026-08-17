@@ -40,10 +40,3 @@ variable "workspace_url" {
   type        = string
   description = "From databricks-account output workspace_url (https://<num>.<n>.gcp.databricks.com)."
 }
-
-# ---- Optional extra network users ----
-variable "additional_network_user_service_accounts" {
-  type        = list(string)
-  default     = []
-  description = "Extra SA emails (no prefix) that need compute.networkUser on the shared subnet (e.g. GKE robot, serverless VPC-access agent)."
-}

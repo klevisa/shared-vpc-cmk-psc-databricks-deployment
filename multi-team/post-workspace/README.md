@@ -8,7 +8,6 @@ The final handback — the two things that could only happen **after** the works
 - **DNS A-records** — writes the four records into the Phase 1 zone so workspace hostnames resolve to the private PSC IPs:
   - workspace URL / `dp-<num>` / `<region>.psc-auth` → frontend IP
   - `tunnel.<region>` → backend IP
-- **(optional)** extra `networkUser` grants for feature-dependent agents (GKE robot, serverless VPC access, …)
 
 After this, clusters start and the workspace is fully usable.
 
@@ -43,7 +42,6 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 - `google_service_account_email` : the network SA this config impersonates (same as Phase 1)
 - `google_region` : the region — a decision, but it **must be the same** across every phase
-- `additional_network_user_service_accounts` : optional extra agent emails needing `networkUser` on the subnet
 
 **📋 Fixed lookups** — none.
 

@@ -47,6 +47,14 @@ resource "google_access_context_manager_service_perimeter_ingress_policy" "rw" {
 
   ingress_from {
     identities = ["serviceAccount:${databricks_storage_credential.rw.databricks_gcp_service_account[0].email}"]
+    # Optional source-pinning: restrict entry to calls originating from Databricks'
+    # own projects (control-plane + serverless-compute). Empty var = identity-only.
+    dynamic "sources" {
+      for_each = var.databricks_source_projects
+      content {
+        resource = sources.value
+      }
+    }
   }
   ingress_to {
     resources = var.protected_resources

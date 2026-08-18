@@ -74,3 +74,11 @@ resource "google_compute_firewall" "node_to_psc" {
   source_ranges      = [var.node_subnet_cidr]
   destination_ranges = [var.pe_subnet_cidr]
 }
+
+# TODO: If you lock down egress (default-deny outbound), add egress firewall rules
+# allowlisting Databricks' IP addresses and domains so classic compute can reach the
+# control plane, artifact/asset storage, and other Databricks services. Unlike the
+# VPC-SC project numbers, these IP ranges CHANGE periodically — use the machine-readable
+# feed (ip-ranges.json) and automate updates, or allowlist the published FQDNs.
+#   Reference: https://docs.databricks.com/gcp/en/resources/ip-domain-region
+#   Feed:      https://www.databricks.com/networking/v1/ip-ranges.json

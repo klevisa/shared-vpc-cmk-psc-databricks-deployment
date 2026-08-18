@@ -43,6 +43,18 @@ variable "protected_resources" {
   default     = ["*"]
   description = "ingress_to resources — the perimeter-protected projects the buckets live in, e.g. [\"projects/222222222222\"]. \"*\" allows all in the perimeter."
 }
+variable "databricks_source_projects" {
+  type    = list(string)
+  default = []
+  # Source-pin the ingress to Databricks' own GCP projects: only the generated SA,
+  # AND only when the call originates from these projects, may enter the perimeter.
+  # Include BOTH the Databricks control-plane and the SERVERLESS-COMPUTE project
+  # numbers for your deploy region. These are STABLE, per-region values (they rarely
+  # change) — look them up in the "IP addresses and domains" table:
+  #   https://docs.databricks.com/gcp/en/resources/ip-domain-region
+  # Format: ["projects/<number>", ...]. Leave EMPTY ([]) for identity-only ingress.
+  description = "Databricks control-plane + serverless-compute project numbers to source-pin the VPC-SC ingress. Empty = identity-only. See the ip-domain-region docs."
+}
 
 # ---- Read-only catalog (the customer's EXISTING data bucket) ----
 variable "readonly_bucket" {

@@ -20,6 +20,14 @@ poc_bucket_sa  = "storage-admin@example-databricks-svc.iam.gserviceaccount.com" 
 perimeter_name      = "accessPolicies/123456789012/servicePerimeters/example_perimeter"
 protected_resources = ["*"] # or ["projects/222222222222"] to scope to the buckets' project
 
+# Source-pin the ingress to Databricks' own projects (control-plane + serverless-compute).
+# Stable, per-region project numbers — look up your region's values in the table at
+# https://docs.databricks.com/gcp/en/resources/ip-domain-region  (leave [] for identity-only).
+databricks_source_projects = [
+  # "projects/000000000001", # Databricks control-plane project (your region)
+  # "projects/000000000002", # Databricks serverless-compute project (your region)
+]
+
 # ---- Read-only catalog (the customer's EXISTING data bucket) ----
 readonly_bucket                  = "example-customer-data"
 readonly_bucket_project          = "example-customer-data"

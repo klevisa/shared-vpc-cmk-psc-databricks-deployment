@@ -62,6 +62,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 - `readonly_bucket` / `readonly_bucket_project` : the customer's **existing** data bucket + its project
 - `perimeter_name` : the customer's VPC-SC perimeter — `accessPolicies/<policy>/servicePerimeters/<name>`
 - `protected_resources` : the perimeter-protected project(s) the buckets live in
+- `databricks_source_projects` : (optional) Databricks control-plane + serverless-compute **project numbers** to source-pin the ingress — look them up in the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region). Empty (`[]`) = identity-only.
 
 ## Outputs
 
@@ -84,5 +85,7 @@ The automation SA itself is created **manually by the account admin** as part of
 Each catalog resolves the same **bootstrap ordering** in one apply: create the storage credential (which generates the Databricks-managed GCP service account), grant that SA the bucket IAM and add the VPC-SC ingress **using the generated email**, then create the external location — whose creation validates that Databricks can reach the bucket, so IAM + ingress must already be in place (`depends_on` enforces this).
 
 The **read-only** catalog is a pure namespace (no `storage_root`); external tables get registered under it later, pointing into the read-only external location, with viewer-only IAM making writes impossible. The **read-write** catalog gets a `storage_root` on the PoC data bucket, so managed tables land there and `DROP` cleans them up. Read-only is enforced three ways: viewer-only IAM, the external-location `read_only` flag, and read-scoped VPC-SC ingress.
+
+**Source-pinning the ingress (optional, both catalogs).** By default the VPC-SC ingress is *identity-only*: it admits the generated storage-credential SA regardless of where the call comes from — which is what lets **serverless** compute (running in Databricks-owned projects, not your VPC) read the buckets. To tighten it, set `databricks_source_projects` to Databricks' **control-plane + serverless-compute project numbers** for your region, so the SA is admitted *only* when the call originates from those projects. These are **stable, per-region** values — look them up once in the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region) (there's no API feed for the project numbers, but they rarely change). Note this is distinct from **firewall** allowlisting, which uses IP ranges (those *do* rotate — see the TODO in `host-network/network.tf`).
 
 Two caveats: (1) the scoped `CREATE_*` grant must propagate before the automation SA can create catalogs — `depends_on` orders it, but a fresh grant may occasionally need a second apply. (2) The VPC-SC `method_selectors` (`google.storage.objects.get`/`list`) follow the supported-methods reference; if a legitimate read is blocked, widen to `"*"` (write protection still holds via IAM + the read-only external location).

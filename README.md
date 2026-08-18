@@ -51,7 +51,8 @@ Once the workspace is up, two further steps build on it (each its own config):
 
 - **[`catalog-setup/`](catalog-setup/README.md)** — registers the Unity Catalog catalogs
   over GCS: a **read-only** catalog on the customer's existing data bucket and a
-  **read-write** catalog on a PoC data bucket, with the VPC-SC ingress each needs.
+  **read-write** managed **analytics** catalog on a bucket created here, with the VPC-SC
+  ingress each needs.
 - **[`serverless-setup/`](serverless-setup/README.md)** — brings **serverless compute**
   into the workspace via a Network Connectivity Config (and an optional egress network
   policy). Serverless reaches the catalogs through the same VPC-SC ingress that

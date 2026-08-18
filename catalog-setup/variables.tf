@@ -28,9 +28,9 @@ variable "data_bucket_sa" {
   type        = string
   description = "SA owning the customer's data bucket project (impersonated). Needs bucket IAM admin on the existing data bucket."
 }
-variable "poc_bucket_sa" {
+variable "analytics_bucket_sa" {
   type        = string
-  description = "Data Platform SA (impersonated). Needs roles/storage.admin in the PoC bucket's project (creates the bucket + grants IAM)."
+  description = "Data Platform SA (impersonated). Needs roles/storage.admin in the analytics bucket's project (creates the bucket + grants IAM)."
 }
 
 # ---- VPC-SC (customer-supplied perimeter) ----
@@ -70,18 +70,18 @@ variable "readonly_schema_name" { type = string }
 variable "readonly_storage_credential_name" { type = string }
 variable "readonly_external_location_name" { type = string }
 
-# ---- Read-write catalog (the PoC DATA bucket, CREATED here) ----
-variable "poc_bucket" {
+# ---- Read-write (managed) catalog (the analytics DATA bucket, CREATED here) ----
+variable "analytics_bucket" {
   type        = string
-  description = "Name of the PoC data bucket to CREATE (globally unique). Backs the read-write catalog."
+  description = "Name of the analytics data bucket to CREATE (globally unique). Backs the read-write managed catalog."
 }
-variable "poc_bucket_project" {
+variable "analytics_bucket_project" {
   type        = string
-  description = "Project to create the PoC data bucket in (google.poc_bucket provider project)."
+  description = "Project to create the analytics data bucket in (google.analytics_bucket provider project)."
 }
-variable "poc_bucket_location" {
+variable "analytics_bucket_location" {
   type        = string
-  description = "Location/region for the PoC data bucket (match the workspace region)."
+  description = "Location/region for the analytics data bucket (match the workspace region)."
 }
 variable "readwrite_catalog_name" { type = string }
 variable "readwrite_schema_name" { type = string }

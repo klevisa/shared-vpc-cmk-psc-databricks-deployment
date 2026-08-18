@@ -32,7 +32,7 @@ variable "restrict_serverless_egress" {
 }
 variable "network_policy_id" {
   type        = string
-  default     = "poc-serverless-egress"
+  default     = "serverless-egress"
   description = "Identifier for the egress network policy (only used when restrict_serverless_egress = true)."
 }
 variable "egress_enforcement_mode" {

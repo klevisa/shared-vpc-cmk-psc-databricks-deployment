@@ -1,8 +1,8 @@
 # Catalog setup — read-only + read-write UC catalogs over GCS
 
 The step **after** workspace setup: register two Unity Catalog catalogs over GCS with
-VPC-SC ingress. Built for a PoC — read the customer's existing data without touching it,
-and write results to a PoC data bucket created here.
+VPC-SC ingress — read the customer's existing data without touching it, and write results
+to a managed **analytics** catalog on a bucket created here.
 
 ## What it does
 
@@ -12,8 +12,8 @@ and write results to a PoC data bucket created here.
 **Read-only catalog** — over the customer's **existing data bucket**
 - storage credential (generates a Databricks SA) → read-only bucket IAM (`objectViewer` + `legacyBucketReader`) → VPC-SC ingress (read methods) → **read-only** external location → catalog + schema (**namespace only** — external tables registered here later)
 
-**Read-write catalog** — over the **PoC data bucket (created here)**
-- create the PoC data bucket → storage credential (its own SA) → read-write bucket IAM (`objectAdmin`) → VPC-SC ingress (all methods) → read-write external location → catalog with a **managed `storage_root`** on the PoC bucket → schema (managed tables land in the bucket)
+**Read-write (managed) catalog** — over the **analytics data bucket (created here)**
+- create the analytics data bucket → storage credential (its own SA) → read-write bucket IAM (`objectAdmin`) → VPC-SC ingress (all methods) → read-write external location → catalog with a **managed `storage_root`** on the analytics bucket → schema (managed tables land in the bucket)
 
 The automation SA **owns** the catalogs it creates. The metastore *admin* is separate — an IdP-synced human group set as the metastore owner (a prereq), not touched here.
 
@@ -36,7 +36,7 @@ Each identity is impersonated by its own aliased provider; each runner needs `ro
 | `catalog_automation_sa` | creates + owns credentials / locations / catalogs | Data Platform | only the granted `CREATE_*` |
 | `perimeter_sa` | VPC-SC ingress | Cloud / Network Security | `accesscontextmanager.policyAdmin` |
 | `data_bucket_sa` | read-only IAM on the existing data bucket | owner of that bucket's project | bucket IAM admin |
-| `poc_bucket_sa` | create PoC bucket + read-write IAM | Data Platform | `storage.admin` in the PoC bucket's project |
+| `analytics_bucket_sa` | create analytics bucket + read-write IAM | Data Platform | `storage.admin` in the analytics bucket's project |
 
 (Point two identities at the same SA if one team owns both.)
 
@@ -53,8 +53,8 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 **✍️ Your decisions this phase:**
 
 - `account_admin_sa` / `catalog_automation_sa` : the account admin, and the (manually created) automation SA
-- `perimeter_sa` / `data_bucket_sa` / `poc_bucket_sa` : the three GCP team SAs
-- `poc_bucket` / `poc_bucket_project` / `poc_bucket_location` : the PoC data bucket to create
+- `perimeter_sa` / `data_bucket_sa` / `analytics_bucket_sa` : the three GCP team SAs
+- `analytics_bucket` / `analytics_bucket_project` / `analytics_bucket_location` : the analytics data bucket to create
 - catalog / schema / storage-credential / external-location names (read-only + read-write)
 
 **📋 Given / lookups** — facts you look up, not free choices:
@@ -66,7 +66,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 ## Outputs
 
-- `poc_data_bucket` : the PoC data bucket created
+- `analytics_data_bucket` : the analytics data bucket created
 - `readonly_catalog` / `readwrite_catalog` : the catalog names
 - `readonly_storage_credential_sa` / `readwrite_storage_credential_sa` : the generated Databricks SA emails
 
@@ -84,7 +84,7 @@ The automation SA itself is created **manually by the account admin** as part of
 
 Each catalog resolves the same **bootstrap ordering** in one apply: create the storage credential (which generates the Databricks-managed GCP service account), grant that SA the bucket IAM and add the VPC-SC ingress **using the generated email**, then create the external location — whose creation validates that Databricks can reach the bucket, so IAM + ingress must already be in place (`depends_on` enforces this).
 
-The **read-only** catalog is a pure namespace (no `storage_root`); external tables get registered under it later, pointing into the read-only external location, with viewer-only IAM making writes impossible. The **read-write** catalog gets a `storage_root` on the PoC data bucket, so managed tables land there and `DROP` cleans them up. Read-only is enforced three ways: viewer-only IAM, the external-location `read_only` flag, and read-scoped VPC-SC ingress.
+The **read-only** catalog is a pure namespace (no `storage_root`); external tables get registered under it later, pointing into the read-only external location, with viewer-only IAM making writes impossible. The **read-write** catalog gets a `storage_root` on the analytics data bucket, so managed tables land there and `DROP` cleans them up. Read-only is enforced three ways: viewer-only IAM, the external-location `read_only` flag, and read-scoped VPC-SC ingress.
 
 **Source-pinning the ingress (optional, both catalogs).** By default the VPC-SC ingress is *identity-only*: it admits the generated storage-credential SA regardless of where the call comes from — which is what lets **serverless** compute (running in Databricks-owned projects, not your VPC) read the buckets. To tighten it, set `databricks_source_projects` to Databricks' **control-plane + serverless-compute project numbers** for your region, so the SA is admitted *only* when the call originates from those projects. These are **stable, per-region** values — look them up once in the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region) (there's no API feed for the project numbers, but they rarely change). Note this is distinct from **firewall** allowlisting, which uses IP ranges (those *do* rotate — see the TODO in `host-network/network.tf`).
 

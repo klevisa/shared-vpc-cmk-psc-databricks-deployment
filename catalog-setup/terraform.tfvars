@@ -12,9 +12,9 @@ metastore_id  = "11111111-2222-3333-4444-555555555555"
 workspace_url = "https://1234567890123456.7.gcp.databricks.com"
 
 # ---- GCP team identities (set to the same value if one team owns several) ----
-perimeter_sa   = "vpcsc-admin@example-security.iam.gserviceaccount.com"            # Cloud/Network Security
-data_bucket_sa = "data-bucket-admin@example-customer-data.iam.gserviceaccount.com" # owner of the source bucket
-poc_bucket_sa  = "storage-admin@example-databricks-svc.iam.gserviceaccount.com"    # Data Platform
+perimeter_sa        = "vpcsc-admin@example-security.iam.gserviceaccount.com"            # Cloud/Network Security
+data_bucket_sa      = "data-bucket-admin@example-customer-data.iam.gserviceaccount.com" # owner of the source bucket
+analytics_bucket_sa = "storage-admin@example-databricks-svc.iam.gserviceaccount.com"    # Data Platform
 
 # ---- VPC-SC (customer-supplied perimeter) ----
 perimeter_name      = "accessPolicies/123456789012/servicePerimeters/example_perimeter"
@@ -36,11 +36,11 @@ readonly_schema_name             = "raw"
 readonly_storage_credential_name = "cust_data_ro_cred"
 readonly_external_location_name  = "cust_data_ro_loc"
 
-# ---- Read-write catalog (the PoC DATA bucket, CREATED here) ----
-poc_bucket                        = "example-poc-data"
-poc_bucket_project                = "example-databricks-svc"
-poc_bucket_location               = "us-central1"
-readwrite_catalog_name            = "poc_data"
+# ---- Read-write (managed) catalog (the analytics DATA bucket, CREATED here) ----
+analytics_bucket                  = "example-analytics-data"
+analytics_bucket_project          = "example-databricks-svc"
+analytics_bucket_location         = "us-central1"
+readwrite_catalog_name            = "analytics"
 readwrite_schema_name             = "default"
-readwrite_storage_credential_name = "poc_data_cred"
-readwrite_external_location_name  = "poc_data_loc"
+readwrite_storage_credential_name = "analytics_cred"
+readwrite_external_location_name  = "analytics_loc"

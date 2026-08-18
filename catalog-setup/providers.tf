@@ -12,8 +12,8 @@
 #
 # GCP — three identities (map to whichever Yahoo teams own each):
 #   perimeter   : Cloud/Network Security — adds the VPC-SC ingress rules.
-#   data_bucket : owner of the customer's existing data bucket — grants read-only IAM.
-#   poc_bucket  : Data Platform — creates the PoC data bucket + grants read-write IAM.
+#   data_bucket     : owner of the customer's existing data bucket — grants read-only IAM.
+#   analytics_bucket: Data Platform — creates the analytics data bucket + grants read-write IAM.
 #
 # NOTE: Unity Catalog objects are created against the WORKSPACE API. If the workspace is
 # private (public_access_enabled = false), run this from somewhere that can reach the
@@ -34,7 +34,7 @@ provider "databricks" {
 
 provider "google" {
   alias                       = "perimeter"
-  project                     = var.poc_bucket_project # quota/context only
+  project                     = var.analytics_bucket_project # quota/context only
   impersonate_service_account = var.perimeter_sa
 }
 
@@ -45,7 +45,7 @@ provider "google" {
 }
 
 provider "google" {
-  alias                       = "poc_bucket"
-  project                     = var.poc_bucket_project
-  impersonate_service_account = var.poc_bucket_sa
+  alias                       = "analytics_bucket"
+  project                     = var.analytics_bucket_project
+  impersonate_service_account = var.analytics_bucket_sa
 }

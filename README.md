@@ -14,6 +14,7 @@ own least-privilege identity, wired together by output→input handoffs.
 - **[Architecture](docs/architecture.md)** — the diagram, how PSC works, and how to test it.
 - **[Databricks prerequisites](docs/databricks-prerequisites.md)** — the account, account admin, and metastore to set up before Phase 0.
 - **[Catalog setup](catalog-setup/README.md)** — read-only + read-write Unity Catalog catalogs over GCS (with VPC-SC), the step after the workspace is up.
+- **[Serverless setup](serverless-setup/README.md)** — bring serverless compute into the workspace (NCC + optional egress lockdown); ties into the catalog-setup VPC-SC ingress.
 
 ## Before you begin
 
@@ -44,8 +45,14 @@ Full walkthrough: **[Databricks prerequisites](docs/databricks-prerequisites.md)
 > `terraform.tfvars` are examples — replace them before applying. Every config is
 > `terraform validate`-clean.
 
-## After the workspace: catalog setup
+## After the workspace
 
-Once the workspace is up, [`catalog-setup/`](catalog-setup/README.md) registers the Unity
-Catalog catalogs over GCS: a **read-only** catalog on the customer's existing data bucket
-and a **read-write** catalog on a scratch/output bucket, with the VPC-SC ingress each needs.
+Once the workspace is up, two further steps build on it (each its own config):
+
+- **[`catalog-setup/`](catalog-setup/README.md)** — registers the Unity Catalog catalogs
+  over GCS: a **read-only** catalog on the customer's existing data bucket and a
+  **read-write** catalog on a PoC data bucket, with the VPC-SC ingress each needs.
+- **[`serverless-setup/`](serverless-setup/README.md)** — brings **serverless compute**
+  into the workspace via a Network Connectivity Config (and an optional egress network
+  policy). Serverless reaches the catalogs through the same VPC-SC ingress that
+  `catalog-setup` creates — the two steps are documented together there.

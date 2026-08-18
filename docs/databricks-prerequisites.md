@@ -72,6 +72,13 @@ assigns the workspace to it.
 2. **If none exists, create one** manually in the account console (**Catalog → Create
    metastore**), pinned to the region.
 3. Copy the **metastore id**.
+4. **Set the metastore admin — the metastore `owner` — to a group.** The metastore admin is a
+   *role* (the owner), and it always carries full admin capability as Unity Catalog evolves —
+   so make it a **group**, not an individual, and prefer an **IdP-synced group** of human
+   governance owners: create the group + assign your admin user(s) **in your IdP** (Okta/Entra
+   → SCIM), let it sync into the account, then set the metastore `owner` to it (account console,
+   or `databricks metastores update <id> --owner <group>`). Automation identities do **not**
+   go in this group — they get scoped `CREATE_*` grants in the catalog step instead.
 
 > **Produces:** `metastore_id` (required) for Phase 3, which assigns the workspace to it with
 > `databricks_metastore_assignment`.

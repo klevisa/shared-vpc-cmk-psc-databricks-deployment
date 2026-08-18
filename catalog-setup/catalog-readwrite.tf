@@ -20,7 +20,7 @@ resource "databricks_storage_credential" "rw" {
   comment  = "Read-write access to the PoC data bucket"
   databricks_gcp_service_account {}
 
-  depends_on = [databricks_grants.metastore, databricks_group_member.admin_sa]
+  depends_on = [databricks_grants.automation]
 }
 
 # GCS IAM — read-write, granted to the generated SA on the PoC data bucket.

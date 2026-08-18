@@ -1,7 +1,3 @@
-output "metastore_admin_group" {
-  value       = databricks_group.metastore_admins.display_name
-  description = "The regional metastore-admin group created here (the specified SA is a member)."
-}
 output "poc_data_bucket" {
   value       = google_storage_bucket.poc.name
   description = "The PoC data bucket created here (backs the read-write catalog)."

@@ -3,10 +3,9 @@
 # ============================================================================
 
 # ---- Databricks identities ----
-databricks_account_id      = "00000000-0000-0000-0000-000000000000"
-account_admin_sa           = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com" # the account admin (from prereqs)
-metastore_admin_sa         = "uc-admin@example-databricks-svc.iam.gserviceaccount.com"              # added to the admin group + creates catalogs
-metastore_admin_group_name = "uc-metastore-admins-us-central1"
+databricks_account_id = "00000000-0000-0000-0000-000000000000"
+account_admin_sa      = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com" # the account admin (from prereqs)
+catalog_automation_sa = "catalog-automation@example-databricks-svc.iam.gserviceaccount.com"    # manual, account-admin-created; creates/owns the catalogs
 
 # ---- from prereqs / Phase 3 ----
 metastore_id  = "11111111-2222-3333-4444-555555555555"

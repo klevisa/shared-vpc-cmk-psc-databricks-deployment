@@ -4,10 +4,11 @@
 # roles/iam.serviceAccountTokenCreator on the SA it impersonates.
 #
 # Databricks — two identities:
-#   accounts : the ACCOUNT ADMIN (from prereqs) — creates the regional metastore-admin
-#              group, adds the specified SA to it, and grants it metastore CREATE.
-#   uc_admin : the specified METASTORE-ADMIN SA — creates the storage credentials,
-#              external locations, catalogs, schemas.
+#   accounts : the ACCOUNT ADMIN (from prereqs) — grants the automation SA the scoped
+#              metastore CREATE privileges.
+#   uc_admin : the CATALOG AUTOMATION SA (manually created + registered by the account
+#              admin) — creates and owns the storage credentials, external locations,
+#              catalogs, schemas. It is NOT a metastore admin; it holds only CREATE_*.
 #
 # GCP — three identities (map to whichever Yahoo teams own each):
 #   perimeter   : Cloud/Network Security — adds the VPC-SC ingress rules.
@@ -28,7 +29,7 @@ provider "databricks" {
 provider "databricks" {
   alias                  = "uc_admin"
   host                   = var.workspace_url
-  google_service_account = var.metastore_admin_sa
+  google_service_account = var.catalog_automation_sa
 }
 
 provider "google" {

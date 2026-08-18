@@ -11,8 +11,8 @@ resource "databricks_storage_credential" "ro" {
   comment  = "Read-only access to the existing data bucket"
   databricks_gcp_service_account {}
 
-  # created only once the SA is a metastore admin with CREATE privileges
-  depends_on = [databricks_grants.metastore, databricks_group_member.admin_sa]
+  # created only once the automation SA holds the scoped CREATE privileges
+  depends_on = [databricks_grants.automation]
 }
 
 # GCS IAM — read-only, granted by the data-bucket owner to the generated SA.

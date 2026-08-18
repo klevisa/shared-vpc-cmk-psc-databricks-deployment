@@ -2,15 +2,11 @@
 variable "databricks_account_id" { type = string }
 variable "account_admin_sa" {
   type        = string
-  description = "The Databricks ACCOUNT ADMIN SA (from prereqs). Creates the metastore-admin group, adds the member, and grants metastore CREATE."
+  description = "The Databricks ACCOUNT ADMIN SA (from prereqs). Grants the automation SA the scoped metastore CREATE privileges."
 }
-variable "metastore_admin_sa" {
+variable "catalog_automation_sa" {
   type        = string
-  description = "The SA to make a METASTORE ADMIN: added to the metastore-admin group here, and impersonated to create the catalogs. Must be registered as a Databricks user (its GSA email)."
-}
-variable "metastore_admin_group_name" {
-  type        = string
-  description = "Name of the regional metastore-admin group to create (e.g. uc-metastore-admins-us-central1)."
+  description = "The catalog AUTOMATION SA — manually created + registered as a Databricks user by the account admin as part of this step's setup. Impersonated to create/own the catalogs; holds only the scoped CREATE_* granted below (NOT a metastore admin)."
 }
 
 # ---- Handoff from prereqs / Phase 3 ----

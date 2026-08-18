@@ -19,8 +19,7 @@ variable "public_access_enabled" {
 }
 variable "metastore_id" {
   type        = string
-  default     = ""
-  description = "Optional existing UC metastore to assign. Empty = auto-assignment."
+  description = "REQUIRED: the region's Unity Catalog metastore id. The workspace is explicitly assigned to it. See docs/databricks-prerequisites.md."
 }
 
 # ---- Handoff from Phase 2 (service-cmek) ----

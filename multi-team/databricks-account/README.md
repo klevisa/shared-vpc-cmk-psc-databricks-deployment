@@ -40,13 +40,13 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 - `databricks_workspace_name` : name for the workspace
 - `public_access_enabled` : `false` = fully private (PSC-only) — **immutable after creation**
-- `metastore_id` : optional existing UC metastore to assign (empty = auto-assignment)
 - `google_service_account_email` : the Data Platform SA this config impersonates
 - `google_region` : the region — a decision, but it **must be the same** across every phase
 
 **📋 Given / org values** — facts you look up, not free choices:
 
 - `databricks_account_id` : your Databricks account id (from the account console)
+- `metastore_id` : the region's Unity Catalog metastore id — **required**; the workspace is explicitly assigned to it (see [`../../docs/databricks-prerequisites.md`](../../docs/databricks-prerequisites.md))
 
 ## Outputs
 
@@ -55,7 +55,7 @@ Copied into the next phase's `terraform.tfvars` (or wired via `terraform_remote_
 - `workspace_id` : the workspace id → **Phase 4 (post-workspace)**
 - `workspace_url` : the workspace URL → **Phase 4 (post-workspace)** (DNS records)
 - `gcp_workspace_sa` : the workspace service account (`db-…@prod-gcp-…`) → **Phase 4 (post-workspace)** (subnet grant)
-- `metastore_assignment` : which metastore was assigned, or "none" (informational)
+- `metastore_assignment` : the metastore assigned to the workspace (informational)
 
 ## How to run
 

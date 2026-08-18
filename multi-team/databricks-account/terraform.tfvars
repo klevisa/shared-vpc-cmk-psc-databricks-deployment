@@ -10,7 +10,7 @@ databricks_workspace_name = "example-prod-ws"
 google_project_name       = "example-databricks-svc" # from Phase 0 output service_project_id
 google_region             = "us-central1"
 public_access_enabled     = false
-metastore_id              = ""
+metastore_id              = "11111111-2222-3333-4444-555555555555" # the region's UC metastore (see docs/databricks-prerequisites.md)
 
 # ---- from Phase 2 (service-cmek) ----
 cmek_key_id = "projects/example-databricks-svc/locations/us-central1/keyRings/example-kr/cryptoKeys/example-cmek-key"

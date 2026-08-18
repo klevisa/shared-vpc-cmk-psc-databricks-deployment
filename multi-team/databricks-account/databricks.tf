@@ -91,7 +91,6 @@ resource "databricks_mws_workspaces" "this" {
 
 # Optional: assign an existing Unity Catalog metastore.
 resource "databricks_metastore_assignment" "this" {
-  count        = var.metastore_id != "" ? 1 : 0
   provider     = databricks.accounts
   depends_on   = [databricks_mws_workspaces.this]
   workspace_id = databricks_mws_workspaces.this.workspace_id

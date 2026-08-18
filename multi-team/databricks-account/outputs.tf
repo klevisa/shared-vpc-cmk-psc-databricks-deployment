@@ -6,5 +6,5 @@ output "gcp_workspace_sa" {
   description = "db-<workspace-id>@prod-gcp-<region> — Phase 4 grants this networkUser on the host subnet so clusters can launch."
 }
 output "metastore_assignment" {
-  value = var.metastore_id != "" ? databricks_metastore_assignment.this[0].metastore_id : "none (relying on auto-assignment)"
+  value = databricks_metastore_assignment.this.metastore_id
 }

@@ -76,9 +76,9 @@ assigns the workspace to it.
 > **Produces:** `metastore_id` (required) for Phase 3, which assigns the workspace to it with
 > `databricks_metastore_assignment`.
 
-Catalogs and their storage — a catalog backed by a customer GCS bucket — are set up
-**separately**, in their own system outside this repo. Here you only need the metastore to
-exist and its id.
+Catalogs and their storage — a catalog backed by a customer GCS bucket — are set up in a
+**later step of this repo**, after the workspace exists (the read-only catalog step). Here
+you only need the region's metastore to exist and its id.
 
 ---
 

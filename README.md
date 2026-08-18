@@ -13,6 +13,7 @@ own least-privilege identity, wired together by output→input handoffs.
 - **[Deployment guide](workspace-setup-multi-team/README.md)** — which team owns each phase, why the order matters, the cross-team handoffs, step-by-step, and commands.
 - **[Architecture](docs/architecture.md)** — the diagram, how PSC works, and how to test it.
 - **[Databricks prerequisites](docs/databricks-prerequisites.md)** — the account, account admin, and metastore to set up before Phase 0.
+- **[Catalog setup](catalog-setup/README.md)** — read-only + read-write Unity Catalog catalogs over GCS (with VPC-SC), the step after the workspace is up.
 
 ## Before you begin
 
@@ -42,3 +43,9 @@ Full walkthrough: **[Databricks prerequisites](docs/databricks-prerequisites.md)
 > **Illustrative values.** Project IDs, names, CIDRs, and the account ID in each
 > `terraform.tfvars` are examples — replace them before applying. Every config is
 > `terraform validate`-clean.
+
+## After the workspace: catalog setup
+
+Once the workspace is up, [`catalog-setup/`](catalog-setup/README.md) registers the Unity
+Catalog catalogs over GCS: a **read-only** catalog on the customer's existing data bucket
+and a **read-write** catalog on a scratch/output bucket, with the VPC-SC ingress each needs.

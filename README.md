@@ -10,7 +10,7 @@ own least-privilege identity, wired together by output→input handoffs.
 
 ## Start here
 
-- **[Deployment guide](multi-team/README.md)** — which team owns each phase, why the order matters, the cross-team handoffs, step-by-step, and commands.
+- **[Deployment guide](workspace-setup-multi-team/README.md)** — which team owns each phase, why the order matters, the cross-team handoffs, step-by-step, and commands.
 - **[Architecture](docs/architecture.md)** — the diagram, how PSC works, and how to test it.
 - **[Databricks prerequisites](docs/databricks-prerequisites.md)** — the account, account admin, and metastore to set up before Phase 0.
 
@@ -33,11 +33,11 @@ Full walkthrough: **[Databricks prerequisites](docs/databricks-prerequisites.md)
 
 | Phase | Config | Team |
 |---|---|---|
-| 0 | [`multi-team/foundation/`](multi-team/foundation) | Cloud Foundation |
-| 1 | [`multi-team/host-network/`](multi-team/host-network) | Network Engineering |
-| 2 | [`multi-team/service-cmek/`](multi-team/service-cmek) | Cloud Security / KMS |
-| 3 | [`multi-team/databricks-account/`](multi-team/databricks-account) | Data / Databricks Platform |
-| 4 | [`multi-team/post-workspace/`](multi-team/post-workspace) | Network / Cloud IAM |
+| 0 | [`workspace-setup-multi-team/foundation/`](workspace-setup-multi-team/foundation) | Cloud Foundation |
+| 1 | [`workspace-setup-multi-team/host-network/`](workspace-setup-multi-team/host-network) | Network Engineering |
+| 2 | [`workspace-setup-multi-team/service-cmek/`](workspace-setup-multi-team/service-cmek) | Cloud Security / KMS |
+| 3 | [`workspace-setup-multi-team/databricks-account/`](workspace-setup-multi-team/databricks-account) | Data / Databricks Platform |
+| 4 | [`workspace-setup-multi-team/post-workspace/`](workspace-setup-multi-team/post-workspace) | Network / Cloud IAM |
 
 > **Illustrative values.** Project IDs, names, CIDRs, and the account ID in each
 > `terraform.tfvars` are examples — replace them before applying. Every config is

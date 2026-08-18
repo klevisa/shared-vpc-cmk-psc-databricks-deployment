@@ -12,6 +12,21 @@ own least-privilege identity, wired together by output→input handoffs.
 
 - **[Deployment guide](multi-team/README.md)** — which team owns each phase, why the order matters, the cross-team handoffs, step-by-step, and commands.
 - **[Architecture](docs/architecture.md)** — the diagram, how PSC works, and how to test it.
+- **[Databricks prerequisites](docs/databricks-prerequisites.md)** — the account, account admin, and metastore to set up before Phase 0.
+
+## Before you begin
+
+The Terraform assumes three **Databricks-side** things already exist. They're set up once in
+the Databricks account console / GCP Marketplace — not by these configs — and they feed
+directly into Phase 3 (`databricks-account/`):
+
+1. **A Databricks account** (via the GCP Marketplace subscription) → gives you `databricks_account_id`.
+2. **An account admin** — the service account Phase 3 impersonates, registered as a Databricks
+   account-admin user → this is Phase 3's `google_service_account_email`.
+3. **A Unity Catalog metastore** in the workspace's region → gives you `metastore_id`
+   (optional; leave empty to rely on auto-assignment).
+
+Full walkthrough: **[Databricks prerequisites](docs/databricks-prerequisites.md)**.
 
 ## The configs
 

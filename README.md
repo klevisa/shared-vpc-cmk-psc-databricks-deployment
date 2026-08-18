@@ -23,8 +23,9 @@ directly into Phase 3 (`databricks-account/`):
 1. **A Databricks account** (via the GCP Marketplace subscription) → gives you `databricks_account_id`.
 2. **An account admin** — the service account Phase 3 impersonates, registered as a Databricks
    account-admin user → this is Phase 3's `google_service_account_email`.
-3. **A Unity Catalog metastore** in the workspace's region → gives you `metastore_id`
-   (optional; leave empty to rely on auto-assignment).
+3. **A Unity Catalog metastore** in the workspace's region → gives you `metastore_id`.
+   It may be pre-created and shared region-wide, but it is **required** — Phase 3 explicitly
+   assigns the workspace to it.
 
 Full walkthrough: **[Databricks prerequisites](docs/databricks-prerequisites.md)**.
 

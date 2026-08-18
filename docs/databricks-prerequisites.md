@@ -11,7 +11,7 @@ Each one produces a value you feed into **Phase 3** (`multi-team/databricks-acco
 |---|---|---|
 | 1. Databricks account | the account id | `databricks_account_id` |
 | 2. Account admin | the SA that may call the account API | `google_service_account_email` |
-| 3. Unity Catalog metastore | the metastore id | `metastore_id` (optional) |
+| 3. Unity Catalog metastore | the metastore id | `metastore_id` (required) |
 
 ---
 
@@ -62,27 +62,37 @@ a *delegated*, non-account-admin workspace admin, see Phase 5 in the
 ## 3. A Unity Catalog metastore
 
 Unity Catalog organizes data under a **metastore** — an account-level object, **one per
-region** (recommended). A workspace uses the metastore in **its** region, so one must exist
-in the region you deploy the workspace into for UC to be available.
+region**. A workspace uses the metastore in **its** region, so one **must** exist in the
+region you deploy into. It's a shared, region-wide object: it may already be created (reused
+across every workspace in the region), but it is **not optional** — Phase 3 explicitly
+assigns the workspace to it.
+
+**Storage model (current best practice — no metastore root bucket).** Databricks now
+recommends defining managed storage at the **catalog** level, not the metastore level:
+
+- Create the metastore **without** a metastore-level root GCS bucket. (Metastore root storage
+  is legacy and no longer the default; new UC workspaces come without one.)
+- Give each **catalog** a managed location backed by a GCS bucket, wired through a Unity
+  Catalog **storage credential**. On GCP, each storage credential yields a Databricks-managed
+  service account whose email you grant `Storage Object Admin` + `Storage Legacy Bucket
+  Reader` on that bucket. A common pattern is one bucket + one credential per catalog/domain,
+  for clean least-privilege boundaries.
+- Catalog/storage setup is **day-2 data work** — it's not part of provisioning this workspace
+  and is out of scope for this repo. What this repo needs is only that the **metastore
+  exists** and its id.
+
+**Get the metastore in place:**
 
 1. **Check** whether a metastore already exists in the workspace's region (account console →
-   **Catalog** / **Data**). If your account auto-provisions one per region, you can skip
-   creating it and rely on auto-assignment (leave `metastore_id` empty in Phase 3).
-2. **If none exists, create one:**
-   - (Optional, for default managed storage) create a **GCS bucket** in the region for the
-     metastore root, and grant Databricks' storage credential / service account access to it.
-     Newer Unity Catalog also supports defining storage per-catalog and creating the metastore
-     without a root bucket.
-   - Create the metastore in the account console (**Catalog → Create metastore**, pinned to
-     the region), or via the account API / the `databricks_metastore` Terraform resource.
+   **Catalog** / **Data**). If one exists, just note its id.
+2. **If none exists, create one** — pinned to the region, no root storage — via the account
+   console (**Catalog → Create metastore**) or the account API / `databricks_metastore`
+   Terraform resource.
 3. Copy the **metastore id**.
 
-> **Produces:** `metastore_id` for Phase 3 (optional). If set, Phase 3 assigns the metastore
-> to the new workspace (`databricks_metastore_assignment`). If empty, Phase 3 relies on
-> auto-assignment.
-
-The metastore is a shared, region-wide object — create it once and reuse it for every
-workspace in that region.
+> **Produces:** `metastore_id` (required) for Phase 3, which assigns the workspace to it with
+> `databricks_metastore_assignment`. (A metastore *can* be set to auto-assign new workspaces
+> in its region, but this deployment assigns explicitly rather than relying on that.)
 
 ---
 
@@ -92,7 +102,7 @@ In `multi-team/databricks-account/terraform.tfvars`:
 
 - `databricks_account_id` ← prerequisite 1
 - `google_service_account_email` ← the SA made account admin in prerequisite 2
-- `metastore_id` ← prerequisite 3 (or empty for auto-assignment)
+- `metastore_id` ← prerequisite 3 (required — the workspace is explicitly assigned to it)
 
 Everything else Phase 3 needs is a handoff from Phases 0-2 (see the
 [deployment guide](../multi-team/README.md)).

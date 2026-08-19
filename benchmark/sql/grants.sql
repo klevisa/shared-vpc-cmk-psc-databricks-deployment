@@ -1,6 +1,6 @@
 -- Least-privilege grants for the three test service principals.
--- Run this AS THE OWNER of the `analytics` catalog (the catalog_automation_sa from
--- catalog-setup). Replace the placeholder principals with each SP's application id.
+-- Run this AS THE OWNER of the `analytics` catalog (the catalog_automation_sp from
+-- data-access). Replace the placeholder principals with each SP's application id.
 --
 --   :runner    -> bench-runner    (runs the benchmark jobs)
 --   :collector -> bench-collector (generates the cost results)

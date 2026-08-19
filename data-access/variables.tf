@@ -4,9 +4,14 @@ variable "account_admin_sa" {
   type        = string
   description = "The Databricks ACCOUNT ADMIN SA (from prereqs). Grants the automation SA the scoped metastore CREATE privileges."
 }
-variable "catalog_automation_sa" {
+variable "catalog_automation_sp" {
   type        = string
-  description = "The catalog AUTOMATION SA — manually created + registered as a Databricks user by the account admin as part of this step's setup. Impersonated to create/own the catalogs; holds only the scoped CREATE_* granted below (NOT a metastore admin)."
+  description = "The catalog AUTOMATION service principal — a native Databricks SP created by the account admin for this step. This is its application id (also the OAuth client_id and the grant principal). It creates/owns the catalogs and holds only the scoped CREATE_* granted below (NOT a metastore admin)."
+}
+variable "catalog_automation_client_secret" {
+  type        = string
+  sensitive   = true
+  description = "OAuth M2M client secret for catalog_automation_sp. Source it from a secret manager / TF_VAR env var — do not hard-code."
 }
 
 # ---- Handoff from prereqs / step 2.4 ----

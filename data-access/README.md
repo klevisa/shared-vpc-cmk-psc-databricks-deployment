@@ -20,7 +20,7 @@ write results to a managed `analytics` catalog on a bucket created here.
 ## What it does
 
 **Automation privileges (scoped, least-privilege):**
-- the Databricks account admin grants the **catalog automation SA** exactly `CREATE_CATALOG` / `CREATE_EXTERNAL_LOCATION` / `CREATE_STORAGE_CREDENTIAL` on the metastore — **not** metastore admin
+- the Databricks account admin grants the **catalog automation SP** exactly `CREATE_CATALOG` / `CREATE_EXTERNAL_LOCATION` / `CREATE_STORAGE_CREDENTIAL` on the metastore — **not** metastore admin
 
 **Read-only catalog** — over the customer's **existing data bucket**
 - storage credential (generates a Databricks SA) → read-only bucket IAM (`objectViewer` + `legacyBucketReader`) → VPC-SC ingress (read methods) → **read-only** external location → catalog + schema (**namespace only** — external tables registered here later)
@@ -28,25 +28,25 @@ write results to a managed `analytics` catalog on a bucket created here.
 **Read-write (managed) catalog** — over the **analytics data bucket (created here)**
 - create the analytics data bucket → storage credential (its own SA) → read-write bucket IAM (`objectAdmin`) → VPC-SC ingress (all methods) → read-write external location → catalog with a **managed `storage_root`** on the analytics bucket → schema (managed tables land in the bucket)
 
-The automation SA **owns** the catalogs it creates. The metastore *admin* is separate — an IdP-synced human group set as the metastore owner (a prereq), not touched here.
+The automation SP **owns** the catalogs it creates. The metastore *admin* is separate — an IdP-synced human group set as the metastore owner (a prereq), not touched here.
 
 ## Pre-reqs
 
 - **Workspace setup complete** (`workspace-setup/`); you have the workspace URL and the region's `metastore_id`.
 - **Metastore admin is set up** (prereq, see [`../databricks-account-setup/README.md`](../databricks-account-setup/README.md)): the metastore's **owner** is an IdP-synced human governance group.
-- **The catalog automation SA exists**: the account admin has **manually created** it and registered it as a Databricks user (its GSA email) so it can authenticate. This is a one-time manual step done as part of setting up this phase.
+- **The catalog automation SP exists**: the account admin has **manually created** a Databricks **service principal** and generated its **OAuth M2M secret** (application id + client secret) so it can authenticate to the workspace API. This is a one-time manual step done as part of setting up this phase.
 - The customer's **data bucket exists**; a **VPC-SC perimeter exists** (customer-supplied) you can attach ingress to.
 
 > Unity Catalog objects are created against the **workspace API**. For a private (`public_access_enabled = false`) workspace, run this from somewhere that can reach the workspace endpoint (inside or peered to the VPC).
 
 ## Privileges needed
 
-Each identity is impersonated by its own aliased provider; each runner needs `roles/iam.serviceAccountTokenCreator` on it:
+Each identity has its own aliased provider. The account-admin and the three GCP SAs are **impersonated** (each runner needs `roles/iam.serviceAccountTokenCreator` on them); the **catalog automation SP** authenticates with its **OAuth M2M secret** — no impersonation:
 
 | Identity | Does | Team | Rights |
 |---|---|---|---|
-| `account_admin_sa` | grants the automation SA scoped `CREATE_*` | (from prereqs) | Databricks **account admin** |
-| `catalog_automation_sa` | creates + owns credentials / locations / catalogs | Data Platform | only the granted `CREATE_*` |
+| `account_admin_sa` | grants the automation SP scoped `CREATE_*` | (from prereqs) | Databricks **account admin** |
+| `catalog_automation_sp` | creates + owns credentials / locations / catalogs | Data Platform | Databricks SP (OAuth); only the granted `CREATE_*` |
 | `perimeter_sa` | VPC-SC ingress | Cloud / Network Security | `accesscontextmanager.policyAdmin` |
 | `data_bucket_sa` | read-only IAM on the existing data bucket | owner of that bucket's project | bucket IAM admin |
 | `analytics_bucket_sa` | create analytics bucket + read-write IAM | Data Platform | `storage.admin` in the analytics bucket's project |
@@ -65,7 +65,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 **✍️ Your decisions this phase:**
 
-- `account_admin_sa` / `catalog_automation_sa` : the account admin, and the (manually created) automation SA
+- `account_admin_sa` : the account admin (impersonated); `catalog_automation_sp` + `catalog_automation_client_secret` : the automation SP's application id + OAuth secret (source the secret via `TF_VAR_catalog_automation_client_secret`)
 - `perimeter_sa` / `data_bucket_sa` / `analytics_bucket_sa` : the three GCP team SAs
 - `analytics_bucket` / `analytics_bucket_project` / `analytics_bucket_location` : the analytics data bucket to create
 - catalog / schema / storage-credential / external-location names (read-only + read-write)
@@ -91,9 +91,9 @@ terraform init && terraform apply -var-file=terraform.tfvars && terraform output
 
 ## Additional info
 
-Two identities, two very different scopes. The **metastore admin** is a *role* — the metastore's **owner** — and belongs to an **IdP-synced human governance group** set after the IdP sync (Phase 1.2, a prereq); it's future-proof (the owner gets whatever admin capabilities UC adds) and it's not managed here. The **automation SA** is deliberately *not* an admin: the account admin grants it exactly the three `CREATE_*` privileges it needs, and it **owns** the catalogs it creates. A bounded, explicit grant is correct for automation — you don't want it silently gaining new powers.
+Two identities, two very different scopes. The **metastore admin** is a *role* — the metastore's **owner** — and belongs to an **IdP-synced human governance group** set after the IdP sync (Phase 1.2, a prereq); it's future-proof (the owner gets whatever admin capabilities UC adds) and it's not managed here. The **automation SP** is deliberately *not* an admin: the account admin grants it exactly the three `CREATE_*` privileges it needs, and it **owns** the catalogs it creates. A bounded, explicit grant is correct for automation — you don't want it silently gaining new powers.
 
-The automation SA itself is created **manually by the account admin** as part of standing up this phase (a GCP service account registered as a Databricks user) — `data-access` consumes it, it doesn't create it.
+The automation SP itself is created **manually by the account admin** as part of standing up this phase (a native Databricks service principal with an OAuth M2M secret) — `data-access` consumes it, it doesn't create it.
 
 Each catalog resolves the same **dependency ordering** in one apply: create the storage credential (which generates the Databricks-managed GCP service account), grant that SA the bucket IAM and add the VPC-SC ingress **using the generated email**, then create the external location — whose creation validates that Databricks can reach the bucket, so IAM + ingress must already be in place (`depends_on` enforces this).
 

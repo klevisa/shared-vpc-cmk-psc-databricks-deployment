@@ -5,7 +5,9 @@
 # ---- Databricks identities ----
 databricks_account_id = "00000000-0000-0000-0000-000000000000"
 account_admin_sa      = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com" # the account admin (from prereqs)
-catalog_automation_sa = "catalog-automation@example-databricks-svc.iam.gserviceaccount.com"    # manual, account-admin-created; creates/owns the catalogs
+catalog_automation_sp = "00000000-0000-0000-0000-0000000000dd"                                 # SP application id (OAuth client_id); account-admin-created; creates/owns the catalogs
+# Source the OAuth secret from env: export TF_VAR_catalog_automation_client_secret=...  (don't hard-code)
+catalog_automation_client_secret = "REPLACE_VIA_TF_VAR_ENV"
 
 # ---- from prereqs / step 2.4 ----
 metastore_id  = "11111111-2222-3333-4444-555555555555"

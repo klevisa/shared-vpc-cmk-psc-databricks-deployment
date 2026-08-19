@@ -1,12 +1,14 @@
 # Phase 4 — post-workspace (Network / Cloud IAM handback)
 
+> ← [Stage 1 guide](../README.md) · [PoC playbook](../../README.md)
+
 ## What it does
 
 The final handback — the two things that could only happen **after** the workspace existed:
 
 - **Workspace-SA subnet grant** — gives the Databricks workspace SA `compute.networkUser` on the host node subnet, so it can launch cluster VMs
-- **DNS A-records** — writes the four records into the Phase 1 zone so workspace hostnames resolve to the private PSC IPs:
-  - workspace URL / `dp-<num>` / `<region>.psc-auth` → frontend IP
+- **DNS A-records** — writes the four records into the Phase 1 zone so workspace hostnames resolve to the private PSC IPs. The names derive from the workspace URL (e.g. `dp-<workspace-id>`, where `<workspace-id>` is the numeric id in the workspace URL):
+  - workspace URL / `dp-<workspace-id>` / `<region>.psc-auth` → frontend IP
   - `tunnel.<region>` → backend IP
 
 After this, clusters start and the workspace is fully usable.

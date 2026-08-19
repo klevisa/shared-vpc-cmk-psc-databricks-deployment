@@ -1,7 +1,9 @@
 # Benchmark prerequisites (GCP-side setup)
 
+> ← Back to the [benchmark stage](README.md) · [PoC playbook](../README.md)
+
 The benchmark itself is just jobs + collectors, but the **cost** numbers depend on a few
-GCP-side things existing first. These are one-time setups, mostly owned by the customer's
+GCP-side things existing first. These are one-time setups, mostly owned by the client's
 cloud/billing team.
 
 ## 1. Enable the BigQuery **detailed** billing export
@@ -105,8 +107,8 @@ Steps (account admin, then catalog owner):
 1. **Create the three SPs** and assign each to the workspace (USER). Note each one's
    **application id** — put the runner + collector ids into `databricks.yml`
    (`runner_sp` / `collector_sp`) for `run_as`.
-2. **Runner entitlement** — since there are no cluster policies, the runner needs to create
-   its own job clusters: grant `bench-runner` the **allow-cluster-create** entitlement.
+2. **Runner entitlement** — the runner creates its own job clusters, so grant `bench-runner`
+   the **allow-cluster-create** entitlement.
 3. **Enable the system schemas** the collector reads (once, metastore/account admin):
    ```bash
    databricks system-schemas enable <metastore-id> billing
@@ -118,4 +120,4 @@ Steps (account admin, then catalog owner):
    with each SP's application id substituted for `:runner` / `:collector` / `:analyst`.
 5. **Secret ACL** — give `bench-collector` READ on the scope (the `put-acl` line in §3).
 
-That's the whole identity setup — no governance layer, no cluster policies.
+That completes the identity setup.

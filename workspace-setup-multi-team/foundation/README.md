@@ -1,13 +1,15 @@
 # Phase 0 — foundation (Cloud Foundation / Landing Zone)
 
+> ← [Stage 1 guide](../README.md) · [PoC playbook](../../README.md)
+
 ## What it does
 
 Lays the shared base the other phases build on. The **host project already exists** and is only referenced; everything else is created here:
 
 - **Service project** — where the workspace's compute, storage, and CMEK key will live
-- **API enablement** — turns on the required Google APIs on **both** projects
+- **API enablement** — turns on the required Google APIs on the **service project** (the host's are already enabled — it's a long-standing Shared VPC host)
   - Enabling the Compute API also provisions the compute service agent that Phase 2's CMEK grant needs
-- **Shared VPC relationship** — enables the host as a Shared VPC host and **attaches** the service project
+- **Shared VPC attachment** — **attaches** the service project to the existing Shared VPC host
 - **GCS service agent** — provisioned on the service project so Phase 2's CMEK grant doesn't fail with `400 … does not exist`
 
 ## Pre-reqs
@@ -23,7 +25,7 @@ On the impersonated foundation SA (`google_service_account_email`), at the **org
 
 - `roles/resourcemanager.projectCreator` — create the service project
 - `roles/billing.user` — link the billing account
-- `roles/compute.xpnAdmin` — enable the host + attach the service project (Shared VPC)
+- `roles/compute.xpnAdmin` — attach the service project to the Shared VPC host
 - `roles/resourcemanager.projectIamAdmin` + `roles/serviceusage.serviceUsageAdmin` — set IAM / enable APIs
 
 The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that SA.
@@ -41,7 +43,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 - `org_id` **or** `folder_id` : where to create the service project (set exactly one)
 - `google_service_account_email` : the foundation SA this config impersonates
 - `google_region` : the region — a decision, but it **must be the same** across every phase
-- `host_project_apis` / `service_project_apis` : which APIs to enable (sensible defaults; override only if needed)
+- `service_project_apis` : which APIs to enable on the service project (sensible defaults; override only if needed)
 
 **📋 Given / org values** — facts you look up, not free choices:
 
@@ -67,6 +69,6 @@ Then hand the outputs to the next phases.
 
 ## Additional info
 
-Phase 0 exists so no later phase needs org-level power. The **host project** is the network team's existing shared network, so this config never creates or modifies it beyond enabling Shared VPC — it just references it. It **creates the service project** (the "tenant" for this one workspace), links billing, and turns on the APIs both projects need. GCP services are off by default, so without this step Phase 1 couldn't create a DNS zone, Phase 2 couldn't create a KMS key, and so on.
+Phase 0 exists so no later phase needs org-level power. The **host project** is the network team's existing shared network, so this config never creates or modifies it — it only **attaches** the new service project to it. It **creates the service project** (the "tenant" for this one workspace), links billing, and turns on the APIs the service project needs (the host's are already on). GCP services are off by default, so without this step Phase 2 couldn't create a KMS key, Phase 3 couldn't reach the compute service agent, and so on.
 
 It then **establishes the Shared VPC relationship** — enabling the host and attaching the service project — which is the platform capability that later lets a VM *owned by the service project* run on a *subnet owned by the host project* (Phase 1 grants the specific subnet permissions, Phase 4 grants the workspace SA). Finally it **provisions the service agents**: the GCS agent via a data source, and the compute agent implicitly by enabling the Compute API, so Phase 2's CMEK grants have real principals to bind to.

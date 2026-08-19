@@ -1,4 +1,6 @@
-# Databricks prerequisites (before Phase 0)
+# Databricks prerequisites (before Stage 1)
+
+> ← Back to the [PoC playbook](../README.md)
 
 The workspace-setup Terraform provisions the GCP side of the workspace, but it **assumes** three
 Databricks-side things already exist. These are **account-scoped, one-time** setups done in

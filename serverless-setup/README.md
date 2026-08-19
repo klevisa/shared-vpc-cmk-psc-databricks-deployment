@@ -1,10 +1,17 @@
-# Serverless setup — NCC + serverless egress
+# Stage 4 — Serverless compute
 
-The step that brings **serverless compute** into the workspace. Serverless does **not**
-run in your Shared VPC — it runs in Databricks-owned GCP projects — so the classic
-networking (subnets, PSC backend, NAT) doesn't govern it. Two account-level controls do,
-and this config sets them up: a **Network Connectivity Config (NCC)** and an optional
-**serverless egress network policy**.
+> ← Back to the [PoC playbook](../README.md)
+
+**Purpose:** bring **serverless compute** into the workspace.
+**Owner:** Data Platform.
+**Produces:** a Network Connectivity Configuration (NCC) bound to the workspace, and an
+optional serverless egress policy.
+
+Serverless does **not** run in the Shared VPC — it runs in Databricks-owned GCP projects — so
+the classic networking (subnets, PSC backend, NAT) doesn't govern it. Two account-level
+controls do: a **Network Connectivity Config (NCC)** and an optional **serverless egress
+network policy**. (The Photon benchmark runs on classic job clusters, so serverless is a
+workspace capability here, not part of the measurement path.)
 
 ## What it does
 
@@ -14,20 +21,20 @@ and this config sets them up: a **Network Connectivity Config (NCC)** and an opt
 **Serverless egress lockdown (optional — `restrict_serverless_egress`):**
 - creates a `RESTRICTED_ACCESS` network policy (allowed FQDNs you specify) and points the workspace at it, defaulting to **`DRY_RUN`** so violations are logged, not blocked — roll out safely, then flip to `ENFORCED`
 
-> **How this ties to what you already built.** Serverless reads your catalogs through
-> Unity Catalog, as the storage-credential SA — and that data access is admitted by the
-> **VPC-SC ingress rule** created in [`../catalog-setup`](../catalog-setup/) (see
-> `catalog-readonly.tf` / `catalog-readwrite.tf`). That ingress is **identity-only by
-> default, which is exactly why serverless works without extra rules.** If you tightened
-> it with `databricks_source_projects`, the project numbers you pinned are Databricks'
-> **serverless-compute** projects — the same serverless plane this NCC configures. So:
-> this config enables serverless; the `catalog-setup` ingress is what lets it reach the data.
+> **How serverless reaches the data.** Serverless reads the catalogs through Unity Catalog,
+> as the storage-credential SA — and that data access is admitted by the **VPC-SC ingress
+> rule** in [`../catalog-setup`](../catalog-setup/) (`catalog-readonly.tf` /
+> `catalog-readwrite.tf`). That ingress is source-pinned via `databricks_source_projects` to
+> Databricks' control-plane **and serverless-compute** project numbers — the serverless-compute
+> entries are what admit this serverless plane. In short: this stage enables serverless; the
+> `catalog-setup` ingress, pinned to include the serverless-compute projects, is what lets it
+> reach the data.
 
 ## Pre-reqs
 
 - **Workspace setup complete** (`workspace-setup-multi-team/`); you have the `workspace_id` (Phase 3 output) and its region.
 - **Account admin exists** (prereq) — the identity this config impersonates.
-- If you plan to source-pin the perimeter, have looked up your region's Databricks project numbers (see [`../catalog-setup`](../catalog-setup/README.md) and the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region)).
+- The `catalog-setup` ingress is source-pinned to include the **serverless-compute** project numbers for your region (see [`../catalog-setup`](../catalog-setup/README.md) and the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region)) — that's what admits serverless to the data.
 
 ## Privileges needed
 
@@ -87,8 +94,6 @@ otherwise serverless loses access to the read-only and read-write catalogs. The 
 sequence: apply with `DRY_RUN`, review the logged violations to learn exactly what
 serverless needs, complete the allowlist, then set `egress_enforcement_mode = "ENFORCED"`.
 
-**Provider-version / cloud-availability caveat.** The NCC binding and network-policy
-resources have evolved across provider versions (some docs still carry historical
-"AWS/Azure only" notes for NCC binding). This config pins `databricks >= 1.116.0`; confirm
-the resources apply cleanly on your provider version in a non-production workspace first.
-Values here are **illustrative** and not apply-tested.
+**Provider version.** The NCC binding and network-policy resources require a recent provider;
+this config pins `databricks >= 1.116.0`. Confirm the resources apply cleanly on your provider
+version in a non-production workspace first. Example values — replace before applying.

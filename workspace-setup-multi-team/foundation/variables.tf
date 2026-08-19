@@ -41,11 +41,7 @@ variable "billing_account" {
   description = "Billing account id to link to the service project (e.g. XXXXXX-XXXXXX-XXXXXX)."
 }
 
-# ---- APIs to enable ----
-variable "host_project_apis" {
-  type    = list(string)
-  default = ["compute.googleapis.com", "dns.googleapis.com"]
-}
+# ---- APIs to enable (SERVICE project only; the host's are already enabled) ----
 variable "service_project_apis" {
   type = list(string)
   default = [

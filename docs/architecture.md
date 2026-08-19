@@ -1,5 +1,7 @@
 # Architecture
 
+> ← Back to the [PoC playbook](../README.md) · detail for [Stage 1](../workspace-setup-multi-team/README.md)
+
 Three domains: the **host** project (network), the **service** project (Databricks
 compute + CMEK), and the **Databricks** control plane (its own projects). PSC is the
 private wire between your VPC and Databricks — two endpoints: a **frontend** (UI/REST)

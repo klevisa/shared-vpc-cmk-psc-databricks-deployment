@@ -1,5 +1,7 @@
 # Phase 3 — databricks-account (Data / Databricks Platform)
 
+> ← [Stage 1 guide](../README.md) · [PoC playbook](../../README.md)
+
 ## What it does
 
 Creates the workspace — entirely through the Databricks **account API**, no GCP resources:

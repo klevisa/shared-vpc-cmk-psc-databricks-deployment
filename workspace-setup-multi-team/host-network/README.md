@@ -1,12 +1,14 @@
 # Phase 1 — host-network (Network Engineering)
 
+> ← [Stage 1 guide](../README.md) · [PoC playbook](../../README.md)
+
 ## What it does
 
 Builds the network layer of the workspace, **inside the existing host project**:
 
 - **VPC** — the private network the Databricks cluster VMs run in
 - **Node subnet** (`/24`) — where cluster VMs get their IPs
-  - Size it for the **peak number of concurrent cluster VMs** across the whole workspace (one IP per VM). A `/24` (~250 usable) suits small/medium workspaces; use `/23`, `/22`, or larger for many concurrent clusters. It **can't be resized after creation**, so size for growth up front.
+  - **Each Databricks node uses two IP addresses**, so the subnet size caps the peak concurrent nodes across the whole workspace: `/25` ≈ 60 nodes, `/24` ≈ 120, `/23` ≈ 250, `/22` ≈ 500, `/21` ≈ 1,000, `/20` ≈ 2,000, `/19` ≈ 4,000. It **can't be resized after creation**, so size for growth up front. Full table: [Databricks GCP network sizing](https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/network-sizing).
 - **PSC subnet** (`/28`) — holds the two Private Service Connect endpoint IPs
   - A `/28` is plenty; it only ever holds the two endpoint IPs (frontend + backend).
 - **Firewall** — intra-cluster traffic + node subnet → PSC subnet egress (443 / 6666 / 8443-8451)
@@ -18,7 +20,7 @@ Builds the network layer of the workspace, **inside the existing host project**:
 
 ## Pre-reqs
 
-- **Phase 0 (`foundation/`) has run** — the host project exists, the service project exists, the Shared VPC association is in place, and the necessary APIs on both projects are enabled.
+- **Phase 0 (`foundation/`) has run** — the service project exists and is attached to the existing Shared VPC host, and its APIs are enabled. (The host is a long-standing Shared VPC host with its APIs already on.)
 - You have Phase 0's output `service_project_number` on hand for the Inputs below.
 
 > This config does **not** create the host project or toggle the Shared VPC association — Cloud Foundation owns those (Phase 0). It only builds the network *inside* the host project.
@@ -88,4 +90,4 @@ The two **PSC endpoints** are the private wire to Databricks: the **frontend** (
 
 We also create the **private DNS zone** for `gcp.databricks.com` and bind it to the VPC. It's *authoritative* for that domain inside the VPC, so workspace hostnames resolve to the private PSC IPs and never leave the private path. The zone is created here, but its **A-records are added in Phase 4** — they need both the endpoint IPs (this phase) and the workspace URL (Phase 3), so they can't be written until the workspace exists.
 
-Finally, the **static subnet grants** give the service project's Google-managed compute agents `compute.networkUser` on the node subnet — the permission that lets a VM owned by the *service* project be placed on a subnet owned by the *host* project. The Databricks **workspace service account** needs the same grant, but it doesn't exist until the workspace is created, so that one grant is deferred to Phase 4.
+Finally, the **static subnet grants** give the service project's Google-managed compute agents `compute.networkUser` on the node subnet — the permission that lets a VM owned by the *service* project be placed on a subnet owned by the *host* project. The Databricks **workspace service account** needs the same grant, but it doesn't exist until the workspace is created, so that one grant happens in Phase 4.

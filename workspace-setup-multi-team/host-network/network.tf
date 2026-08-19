@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
 # VPC + subnets inside the EXISTING host project. Owned by Network Engineering.
 #
-# The host project itself and the Shared VPC association (host enablement +
-# service-project attach) already exist — Cloud Foundation owns them (Phase 0).
-# This config only creates the VPC and its subnets within that host project.
+# The host project is a long-standing Shared VPC host; Cloud Foundation attached the
+# service project to it in Phase 0. This config only creates the VPC and its subnets
+# within that host project.
 # Records for the DNS zone are added in Phase 4 (post-workspace).
 # -----------------------------------------------------------------------------
 

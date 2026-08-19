@@ -44,16 +44,22 @@ variable "protected_resources" {
   description = "ingress_to resources — the perimeter-protected projects the buckets live in, e.g. [\"projects/222222222222\"]. \"*\" allows all in the perimeter."
 }
 variable "databricks_source_projects" {
-  type    = list(string)
-  default = []
-  # Source-pin the ingress to Databricks' own GCP projects: only the generated SA,
-  # AND only when the call originates from these projects, may enter the perimeter.
-  # Include BOTH the Databricks control-plane and the SERVERLESS-COMPUTE project
-  # numbers for your deploy region. These are STABLE, per-region values (they rarely
-  # change) — look them up in the "IP addresses and domains" table:
-  #   https://docs.databricks.com/gcp/en/resources/ip-domain-region
-  # Format: ["projects/<number>", ...]. Leave EMPTY ([]) for identity-only ingress.
-  description = "Databricks control-plane + serverless-compute project numbers to source-pin the VPC-SC ingress. Empty = identity-only. See the ip-domain-region docs."
+  type = list(string)
+  # REQUIRED source-pinning: the VPC-SC ingress admits the generated storage-credential SA
+  # ONLY when the call originates from these Databricks-owned projects. Include BOTH the
+  # Databricks control-plane AND the serverless-compute project numbers for your region, so
+  # both paths are covered — the storage-credential SA (classic/UC operations) and serverless
+  # compute (which runs in Databricks-owned projects). Look them up in the "IP addresses and
+  # domains" table: https://docs.databricks.com/gcp/en/resources/ip-domain-region
+  # These are STABLE values Databricks publishes for exactly this purpose — an existing number
+  # is never changed out from under a pinned perimeter (that would break every pinned customer).
+  # New numbers are only ever ADDED and announced; reconcile the list if that happens, or new
+  # traffic from an unlisted project is denied. Format: ["projects/<number>", ...].
+  validation {
+    condition     = length(var.databricks_source_projects) > 0
+    error_message = "Source-pinning is required: set the Databricks control-plane + serverless-compute project numbers for your region (see the ip-domain-region docs)."
+  }
+  description = "REQUIRED. Databricks control-plane + serverless-compute project numbers that source-pin the VPC-SC ingress. See the ip-domain-region docs."
 }
 
 # ---- Read-only catalog (the customer's EXISTING data bucket) ----

@@ -1,5 +1,7 @@
 # Phase 2 — service-cmek (Cloud Security / KMS)
 
+> ← [Stage 1 guide](../README.md) · [PoC playbook](../../README.md)
+
 ## What it does
 
 Creates the customer-managed encryption key (CMEK) in the **service project** and grants the project's Google-managed agents permission to use it:

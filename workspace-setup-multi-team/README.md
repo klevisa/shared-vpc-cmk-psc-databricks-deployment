@@ -1,10 +1,16 @@
-# Multi-team deployment
+# Stage 1 — Enable the Databricks workspace
 
-This deployment is **split across teams** — each team runs one Terraform config with only
-its own least-privilege identity, and teams hand off **data** (Terraform outputs), never
-shared credentials or shared state. This is the shape a large organization needs: no single
-service account should hold *account admin + Owner-on-service + network-admin-on-host +
-`xpnAdmin`* all at once.
+> ← Back to the [PoC playbook](../README.md)
+
+**Purpose:** stand up a secure Databricks workspace on a GCP Shared VPC — private
+connectivity (PSC), customer-managed encryption (CMEK), and no public exposure.
+**Owner:** split across the platform teams (see the map below).
+**Produces:** a running workspace — its URL, id, and workspace service account — ready for
+Unity Catalog (Stage 3).
+
+The work is **split across teams** — each team runs one Terraform config with only its own
+least-privilege identity, and teams hand off **data** (Terraform outputs), never shared
+credentials or shared state.
 
 Each phase below links to its config's README for the full inputs, outputs, and commands.
 
@@ -14,7 +20,7 @@ Each phase below links to its config's README for the full inputs, outputs, and 
 
 | Slice | Config / resources | Team | Standing identity it needs |
 |---|---|---|---|
-| **0. Foundation** | [`foundation/`](foundation/README.md) — create the service project, enable APIs on both projects, establish the Shared VPC relationship (host enable + attach), provision the GCS service agent. The **host project already exists** | **Cloud Foundation / Landing Zone** | org/folder: `resourcemanager.projectCreator`, `billing.user`, `compute.xpnAdmin`, `resourcemanager.projectIamAdmin` |
+| **0. Foundation** | [`foundation/`](foundation/README.md) — create the service project, enable its APIs, attach it to the existing Shared VPC host, provision the GCS service agent. The **host project already exists** (and its APIs are already enabled) | **Cloud Foundation / Landing Zone** | org/folder: `resourcemanager.projectCreator`, `billing.user`, `compute.xpnAdmin`, `resourcemanager.projectIamAdmin` |
 | **1. Host network** | [`host-network/`](host-network/README.md) — VPC, subnets, firewall, router, NAT, PSC IPs + forwarding rules, DNS **zone**, static service-agent subnet grants | **Network Engineering** | `compute.networkAdmin` + `compute.securityAdmin` + `dns.admin` on **HOST** |
 | **2. CMEK** | [`service-cmek/`](service-cmek/README.md) — keyring, key, grants to service-project compute-system + gs-project-accounts agents | **Cloud Security / KMS** | `cloudkms.admin` on **SERVICE** |
 | **3. Databricks account + workspace** | [`databricks-account/`](databricks-account/README.md) — VPC-endpoint regs, private access settings, network config, CMEK registration, workspace, metastore | **Data / Databricks Platform** | Databricks **account admin** — no GCP project roles (this phase only calls the account API) |
@@ -90,10 +96,10 @@ referenced; this config creates and wires everything else the later phases assum
 
 1. **Create the service project** (`google_project`) under an org or folder, linked to a
    billing account.
-2. **Enable the APIs** on both the host and the service project (`compute, dns, cloudkms,
-   iam, iamcredentials, cloudresourcemanager, serviceusage, storage`).
-3. **Establish the Shared VPC relationship** — enable the host as a Shared VPC host and
-   **attach** the service project (`roles/compute.xpnAdmin`).
+2. **Enable the APIs** on the service project (`compute, dns, cloudkms, iam, iamcredentials,
+   cloudresourcemanager, serviceusage, storage`). The host's APIs are already enabled.
+3. **Attach to the Shared VPC** — attach the service project to the existing Shared VPC host
+   (`roles/compute.xpnAdmin`).
 4. **Provision the service agents** — the GCS agent via a data source, and the compute
    agent by enabling the Compute API — so Phase 2's CMEK grants don't fail with
    `400 does not exist`.

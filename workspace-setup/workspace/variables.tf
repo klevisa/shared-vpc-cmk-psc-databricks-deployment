@@ -1,7 +1,7 @@
 # ---- Identity ----
-variable "google_service_account_email" {
+variable "databricks_account_admin_sa" {
   type        = string
-  description = "DATA PLATFORM team's automation SA (impersonated for account-API auth). Must be a Databricks ACCOUNT ADMIN. Runner needs iam.serviceAccountTokenCreator on it."
+  description = "The Databricks account-admin automation SA: a GCP service account registered as a Databricks account-admin USER, impersonated for account-API auth to create the workspace. Distinct from the human account admin who subscribed via the Marketplace. Runner needs iam.serviceAccountTokenCreator on it. See databricks-account-setup/README.md (1.1)."
 }
 
 # ---- Databricks account / workspace ----

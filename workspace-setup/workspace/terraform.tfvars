@@ -3,7 +3,7 @@
 # The vars under "from steps 2.2/2.3" are the outputs of the upstream configs —
 # copy them in, or wire them via terraform_remote_state (see multi-team/README).
 # ============================================================================
-google_service_account_email = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com"
+databricks_account_admin_sa = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com"
 
 databricks_account_id     = "00000000-0000-0000-0000-000000000000"
 databricks_workspace_name = "example-prod-ws"

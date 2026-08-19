@@ -21,7 +21,7 @@ No workspace admin is created — the account admin running this already has it 
 
 ## Privileges needed
 
-- The impersonated SA (`google_service_account_email`) is registered as a **Databricks account-admin user**. This phase talks only to `accounts.gcp.databricks.com`, so it needs **no GCP project roles**.
+- The impersonated SA (`databricks_account_admin_sa`) is registered as a **Databricks account-admin user**. This phase talks only to `accounts.gcp.databricks.com`, so it needs **no GCP project roles**.
 
 The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that SA.
 
@@ -42,7 +42,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 - `databricks_workspace_name` : name for the workspace
 - `public_access_enabled` : `false` = fully private (PSC-only) — **immutable after creation**
-- `google_service_account_email` : the Data Platform SA this config impersonates
+- `databricks_account_admin_sa` : the account-admin automation SA this config impersonates (see [databricks-account-setup](../../databricks-account-setup/README.md) 1.1)
 - `google_region` : the region — a decision, but it **must be the same** across every phase
 
 **📋 Given / org values** — facts you look up, not free choices:

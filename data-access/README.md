@@ -20,7 +20,7 @@ write results to a managed `analytics` catalog on a bucket created here.
 ## What it does
 
 **Automation privileges (scoped, least-privilege):**
-- the account admin grants the **catalog automation SA** exactly `CREATE_CATALOG` / `CREATE_EXTERNAL_LOCATION` / `CREATE_STORAGE_CREDENTIAL` on the metastore — **not** metastore admin
+- the Databricks account admin grants the **catalog automation SA** exactly `CREATE_CATALOG` / `CREATE_EXTERNAL_LOCATION` / `CREATE_STORAGE_CREDENTIAL` on the metastore — **not** metastore admin
 
 **Read-only catalog** — over the customer's **existing data bucket**
 - storage credential (generates a Databricks SA) → read-only bucket IAM (`objectViewer` + `legacyBucketReader`) → VPC-SC ingress (read methods) → **read-only** external location → catalog + schema (**namespace only** — external tables registered here later)
@@ -91,7 +91,7 @@ terraform init && terraform apply -var-file=terraform.tfvars && terraform output
 
 ## Additional info
 
-Two identities, two very different scopes. The **metastore admin** is a *role* — the metastore's **owner** — and belongs to an **IdP-synced human governance group** set when the metastore is created (a prereq); it's future-proof (the owner gets whatever admin capabilities UC adds) and it's not managed here. The **automation SA** is deliberately *not* an admin: the account admin grants it exactly the three `CREATE_*` privileges it needs, and it **owns** the catalogs it creates. A bounded, explicit grant is correct for automation — you don't want it silently gaining new powers.
+Two identities, two very different scopes. The **metastore admin** is a *role* — the metastore's **owner** — and belongs to an **IdP-synced human governance group** set after the IdP sync (Phase 1.2, a prereq); it's future-proof (the owner gets whatever admin capabilities UC adds) and it's not managed here. The **automation SA** is deliberately *not* an admin: the account admin grants it exactly the three `CREATE_*` privileges it needs, and it **owns** the catalogs it creates. A bounded, explicit grant is correct for automation — you don't want it silently gaining new powers.
 
 The automation SA itself is created **manually by the account admin** as part of standing up this phase (a GCP service account registered as a Databricks user) — `data-access` consumes it, it doesn't create it.
 

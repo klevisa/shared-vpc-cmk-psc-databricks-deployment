@@ -1,0 +1,48 @@
+resources:
+  jobs:
+    sample_job:
+      name: benchmark-sample-${var.engine_tag}
+
+      # Runs as the runner SP (separation of duties); humans get CAN_MANAGE_RUN to trigger.
+      run_as:
+        service_principal_name: ${var.runner_sp}
+
+      # Failure notification (your requested email-on-failure).
+      email_notifications:
+        on_failure:
+          - ${var.failure_email}
+
+      # Job-level tags for organization; the cost-attribution tags that matter are the
+      # cluster custom_tags below (those flow to system.billing.usage + GCE labels).
+      tags:
+        project: ${var.project_tag}
+        engine: ${var.engine_tag}
+
+      job_clusters:
+        - job_cluster_key: bench
+          new_cluster:
+            spark_version: ${var.spark_version}
+            runtime_engine: ${var.engine}
+            driver_node_type_id: ${var.driver_node_type_id}
+            node_type_id: ${var.node_type_id}
+            num_workers: ${var.num_workers}
+            spark_conf:
+              spark.benchmark.rows: ${var.benchmark_rows}
+            # These land on system.billing.usage.custom_tags and on the GCE VM labels,
+            # so the cost collectors can attribute DBU + VM cost by project/engine.
+            # run_id is injected via a dynamic value reference: Databricks resolves
+            # {{job.run_id}} at launch and propagates it to the GCE VM labels, so GCP
+            # billing rows carry the run id -- the SAME value as
+            # system.billing.usage.usage_metadata.job_run_id, giving an unambiguous
+            # per-run join across the DBU (Databricks) and VM (GCP) cost sources.
+            custom_tags:
+              project: ${var.project_tag}
+              engine: ${var.engine_tag}
+              run_id: "{{job.run_id}}"
+
+      tasks:
+        - task_key: run
+          job_cluster_key: bench
+          spark_python_task:
+            python_file: ../src/sample_job.py
+          max_retries: ${var.max_retries}

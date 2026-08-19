@@ -1,0 +1,70 @@
+bundle:
+  name: benchmark
+
+# One pyspark file == one single-task job. Compute + retries + failure email + the
+# project/engine tags are all variables, so the SAME bundle runs the Photon pass, the
+# Spark baseline, and (later) promotes dev -> prod without code changes.
+variables:
+  # Engine: PHOTON or STANDARD (drives runtime_engine). engine_tag is its lowercase label.
+  engine:
+    default: PHOTON
+  engine_tag:
+    default: photon
+  project_tag:
+    default: dataproc-vs-photon
+
+  # Compute — match these to the Dataproc cluster for a fair comparison.
+  spark_version:
+    default: 15.4.x-scala2.12
+  driver_node_type_id:
+    default: n2-highmem-8
+  node_type_id:
+    default: n2-highmem-8
+  num_workers:
+    default: 4
+
+  # Reliability
+  max_retries:
+    default: 1
+  failure_email:
+    default: benchmark-alerts@example.com
+
+  # Workload size (passed to the job as a Spark conf)
+  benchmark_rows:
+    default: "100000000"
+
+  # --- cost collectors (see src/collect_*.py, resources/collectors.yml) ---
+  results_table:
+    default: analytics.benchmark.results
+  bq_billing_view:
+    default: billing-project.benchmark_billing.vm_cost_by_run # scoped authorized view
+  gcp_project:
+    default: example-databricks-svc
+  dataproc_region:
+    default: us-central1
+  secret_scope:
+    default: benchmark
+  secret_key:
+    default: gcp_sp_key_json # SA-key JSON for the billing/dataproc SP
+
+  # --- test service principals (run-as). Set to each SP's application id after you
+  # create them (see prerequisites.md). Separation of duties: runner runs jobs,
+  # collector generates results, analyst reads + builds dashboards. ---
+  runner_sp:
+    default: 00000000-0000-0000-0000-00000000aaaa
+  collector_sp:
+    default: 00000000-0000-0000-0000-00000000bbbb
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://1234567890123456.7.gcp.databricks.com
+  prod:
+    mode: production
+    workspace:
+      host: https://1234567890123456.7.gcp.databricks.com

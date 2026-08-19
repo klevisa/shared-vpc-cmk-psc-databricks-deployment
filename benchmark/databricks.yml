@@ -33,7 +33,7 @@ variables:
   benchmark_rows:
     default: "100000000"
 
-  # --- cost collectors (see src/collect_*.py, resources/collectors.yml) ---
+  # --- results + GCP billing (collectors; see src/collect_*.py) ---
   results_table:
     default: analytics.benchmark.results
   bq_billing_view:
@@ -44,16 +44,34 @@ variables:
     default: us-central1
   secret_scope:
     default: benchmark
-  secret_key:
-    default: gcp_sp_key_json # SA-key JSON for the billing/dataproc SP
+  # Two GCP SA keys live in the secret scope; each Databricks SP reads only its own.
+  dataproc_runner_secret_key:
+    default: gcp_dataproc_runner_key # read by bench-runner (submits Dataproc)
+  data_collector_secret_key:
+    default: gcp_data_collector_key # read by bench-collector (runtimes + billing)
 
-  # --- test service principals (run-as). Set to each SP's application id after you
-  # create them (see prerequisites.md). Separation of duties: runner runs jobs,
-  # collector generates results, analyst reads + builds dashboards. ---
+  # --- Dataproc submit (orchestrated from Databricks by bench-runner; see src/submit_dataproc.py) ---
+  dataproc_cluster:
+    default: example-dataproc-cluster # the client's existing Dataproc cluster
+  dataproc_pyspark_uri:
+    default: gs://example-analytics-data/benchmark/sample_job.py # the same file, staged on GCS for Dataproc
+  data_collector_sa:
+    default: data-collector@example-databricks-svc.iam.gserviceaccount.com # granted jobs.get per job
+  dataproc_jobs_get_role:
+    default: projects/example-databricks-svc/roles/benchmarkDataprocJobsReader # custom role: dataproc.jobs.get
+
+  # --- dashboard ---
+  warehouse_id:
+    default: 0123456789abcdef # SQL warehouse the Lakeview dashboard runs on
+
+  # --- service principals (run-as). Set to each SP's application id (see prerequisites.md).
+  # Separation of duties: runner runs + submits, collector materializes results, analyst builds dashboards. ---
   runner_sp:
-    default: 00000000-0000-0000-0000-00000000aaaa
+    default: 00000000-0000-0000-0000-00000000aaaa # bench-runner
   collector_sp:
-    default: 00000000-0000-0000-0000-00000000bbbb
+    default: 00000000-0000-0000-0000-00000000bbbb # bench-collector
+  analyst_sp:
+    default: 00000000-0000-0000-0000-00000000cccc # bench-analyst (dashboard owner)
 
 include:
   - resources/*.yml

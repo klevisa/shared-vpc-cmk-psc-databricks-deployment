@@ -1,0 +1,122 @@
+{
+  "datasets": [
+    {
+      "name": "results",
+      "displayName": "Benchmark results",
+      "queryLines": [
+        "SELECT job_name, platform, engine, run_id, duration_s,\n",
+        "       dbu_cost_usd, gcp_vm_cost_usd, total_cost_usd\n",
+        "FROM analytics.benchmark.results"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "overview",
+      "displayName": "Dataproc vs Photon",
+      "layout": [
+        {
+          "widget": {
+            "name": "cost_by_engine",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "results",
+                  "fields": [
+                    { "name": "job_name", "expression": "`job_name`" },
+                    { "name": "engine", "expression": "`engine`" },
+                    { "name": "sum_total_cost_usd", "expression": "SUM(`total_cost_usd`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "job_name", "scale": { "type": "categorical" }, "displayName": "Job" },
+                "y": { "fieldName": "sum_total_cost_usd", "scale": { "type": "quantitative" }, "displayName": "Total cost (USD)" },
+                "color": { "fieldName": "engine", "scale": { "type": "categorical" }, "displayName": "Engine" }
+              },
+              "frame": { "title": "Total cost by job & engine", "showTitle": true }
+            }
+          },
+          "position": { "x": 0, "y": 0, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "runtime_by_engine",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "results",
+                  "fields": [
+                    { "name": "job_name", "expression": "`job_name`" },
+                    { "name": "engine", "expression": "`engine`" },
+                    { "name": "avg_duration_s", "expression": "AVG(`duration_s`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "job_name", "scale": { "type": "categorical" }, "displayName": "Job" },
+                "y": { "fieldName": "avg_duration_s", "scale": { "type": "quantitative" }, "displayName": "Avg runtime (s)" },
+                "color": { "fieldName": "engine", "scale": { "type": "categorical" }, "displayName": "Engine" }
+              },
+              "frame": { "title": "Runtime by job & engine", "showTitle": true }
+            }
+          },
+          "position": { "x": 3, "y": 0, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "results_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "results",
+                  "fields": [
+                    { "name": "job_name", "expression": "`job_name`" },
+                    { "name": "platform", "expression": "`platform`" },
+                    { "name": "engine", "expression": "`engine`" },
+                    { "name": "run_id", "expression": "`run_id`" },
+                    { "name": "duration_s", "expression": "`duration_s`" },
+                    { "name": "dbu_cost_usd", "expression": "`dbu_cost_usd`" },
+                    { "name": "gcp_vm_cost_usd", "expression": "`gcp_vm_cost_usd`" },
+                    { "name": "total_cost_usd", "expression": "`total_cost_usd`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "job_name", "displayName": "Job" },
+                  { "fieldName": "platform", "displayName": "Platform" },
+                  { "fieldName": "engine", "displayName": "Engine" },
+                  { "fieldName": "run_id", "displayName": "Run id" },
+                  { "fieldName": "duration_s", "displayName": "Runtime (s)" },
+                  { "fieldName": "dbu_cost_usd", "displayName": "DBU $" },
+                  { "fieldName": "gcp_vm_cost_usd", "displayName": "GCP VM $" },
+                  { "fieldName": "total_cost_usd", "displayName": "Total $" }
+                ]
+              }
+            }
+          },
+          "position": { "x": 0, "y": 6, "width": 6, "height": 8 }
+        }
+      ]
+    }
+  ]
+}

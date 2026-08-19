@@ -25,7 +25,7 @@ def main() -> None:
     ap.add_argument("--results-table", default="analytics.benchmark.results")
     ap.add_argument("--bq-view", required=True, help="project.dataset.view of the scoped billing view")
     ap.add_argument("--secret-scope", default="benchmark")
-    ap.add_argument("--secret-key", default="gcp_sp_key_json")
+    ap.add_argument("--secret-key", default="gcp_data_collector_key")
     args = ap.parse_args()
 
     spark = SparkSession.builder.getOrCreate()

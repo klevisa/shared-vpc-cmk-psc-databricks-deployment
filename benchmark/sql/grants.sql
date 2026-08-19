@@ -6,8 +6,11 @@
 --   :collector -> bench-collector (generates the cost results)
 --   :analyst   -> bench-analyst   (reads results, builds dashboards)
 --
+-- The two GCP service accounts (dataproc-runner, data-collector) are not UC principals, so
+-- they're not granted here — their access is GCP IAM + secret-scope reads (prerequisites.md):
+-- bench-runner reads the dataproc-runner key, bench-collector reads the data-collector key.
 -- SP creation, workspace assignment, the runner's allow-cluster-create entitlement, the
--- secret-scope READ, and enabling the system schemas are documented in prerequisites.md.
+-- secret-scope READs, and enabling the system schemas are documented in prerequisites.md.
 
 -- Two schemas: keep job outputs and cost results separate so runner/collector don't overlap.
 CREATE SCHEMA IF NOT EXISTS analytics.workloads;   -- job outputs (runner writes, if jobs write)

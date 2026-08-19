@@ -1,0 +1,76 @@
+"""Submit the benchmark PySpark file to Dataproc — orchestrated from Databricks.
+
+Run as bench-runner. Reads the gcp-dataproc-runner SA key from the secret scope, submits
+the SAME PySpark file to the client's Dataproc cluster, and — in one place — handles the
+two things the cost join needs:
+  - labels the job `project` / `engine=dataproc` / `run_id=<job id>` so its VM cost is
+    attributable in the BigQuery billing view (run_id = the Dataproc job id we mint here);
+  - grants the gcp-data-collector SA `dataproc.jobs.get` on THIS job only (per-job IAM), so
+    the collector can later read its runtime.
+Prints the run_id — feed it to collect_dataproc as --run-ids.
+
+Network: the submit is a call to dataproc.googleapis.com, reachable from classic Databricks
+compute over Private Google Access (no public egress needed). The Dataproc job itself runs
+in the client's Dataproc environment. Illustrative: install google-cloud-dataproc.
+"""
+import argparse
+import json
+import uuid
+
+from google.cloud import dataproc_v1
+from google.iam.v1 import policy_pb2
+from google.oauth2 import service_account
+from pyspark.sql import SparkSession
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--gcp-project", required=True)
+    ap.add_argument("--dataproc-region", required=True)
+    ap.add_argument("--cluster", required=True, help="the client's Dataproc cluster name")
+    ap.add_argument("--pyspark-uri", required=True, help="gs:// path to the benchmark file")
+    ap.add_argument("--job-name", required=True)
+    ap.add_argument("--project-tag", default="dataproc-vs-photon")
+    ap.add_argument("--data-collector-sa", required=True, help="SA to grant jobs.get on this job")
+    ap.add_argument("--jobs-get-role", required=True, help="custom role with dataproc.jobs.get")
+    ap.add_argument("--secret-scope", default="benchmark")
+    ap.add_argument("--secret-key", default="gcp_dataproc_runner_key")
+    args = ap.parse_args()
+
+    spark = SparkSession.builder.getOrCreate()
+    from pyspark.dbutils import DBUtils
+
+    dbutils = DBUtils(spark)
+    info = json.loads(dbutils.secrets.get(args.secret_scope, args.secret_key))
+    creds = service_account.Credentials.from_service_account_info(info)
+
+    # run_id = the Dataproc job id we mint, so it's both the job reference and the cost label.
+    run_id = f"{args.job_name}-dataproc-{uuid.uuid4().hex[:8]}"
+    endpoint = f"{args.dataproc_region}-dataproc.googleapis.com:443"
+    jc = dataproc_v1.JobControllerClient(credentials=creds, client_options={"api_endpoint": endpoint})
+
+    # 1) Submit the same PySpark file, labeled for cost attribution.
+    job = {
+        "reference": {"job_id": run_id},
+        "placement": {"cluster_name": args.cluster},
+        "labels": {"project": args.project_tag, "engine": "dataproc", "run_id": run_id},
+        "pyspark_job": {"main_python_file_uri": args.pyspark_uri},
+    }
+    jc.submit_job(project_id=args.gcp_project, region=args.dataproc_region, job=job)
+
+    # 2) Grant the data-collector jobs.get on THIS job only (per-job IAM).
+    resource = f"projects/{args.gcp_project}/regions/{args.dataproc_region}/jobs/{run_id}"
+    policy = jc.get_iam_policy(request={"resource": resource})
+    policy.bindings.append(
+        policy_pb2.Binding(
+            role=args.jobs_get_role,
+            members=[f"serviceAccount:{args.data_collector_sa}"],
+        )
+    )
+    jc.set_iam_policy(request={"resource": resource, "policy": policy})
+
+    print(f"submit_dataproc: submitted run_id={run_id} to cluster {args.cluster}")
+
+
+if __name__ == "__main__":
+    main()

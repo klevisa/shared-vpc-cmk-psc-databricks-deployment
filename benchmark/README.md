@@ -21,24 +21,27 @@ Each PySpark file is **one Databricks job with one task**. The same file runs th
 
 | # | Where | Engine | How |
 |---|---|---|---|
-| 1 | Databricks | **Spark** (STANDARD) | `bundle run` with `engine=STANDARD`, `engine_tag=spark` |
-| 2 | Databricks | **Photon** | `bundle run` with `engine=PHOTON`, `engine_tag=photon` |
-| 3 | Dataproc | Spark | submitted on Dataproc, the same file |
+| 1 | Databricks | **Spark** (STANDARD) | `bundle run sample_job` with `engine=STANDARD`, `engine_tag=spark` |
+| 2 | Databricks | **Photon** | `bundle run sample_job` with `engine=PHOTON`, `engine_tag=photon` |
+| 3 | Dataproc | Spark | `bundle run run_dataproc` — bench-runner submits the same file |
 
 Runs 1 and 2 use **identical, fixed hardware** (node types, worker count, DBR version — all
 bundle variables), so the engine is the only variable, matched to the Dataproc cluster in #3.
 
-### The Dataproc run
+### The Dataproc run — orchestrated from Databricks
 
-The Dataproc submit is issued using the **`gcp-dataproc-runner`** service account (its key is
-read from the secret scope). For a fair, attributable comparison:
+`bundle run run_dataproc` (run as **`bench-runner`**) submits the same PySpark file to the
+client's Dataproc cluster via the **`gcp-dataproc-runner`** SA key from the secret scope. One
+step (`src/submit_dataproc.py`) does everything the cost join needs:
 
-- **Match the hardware** — size the Dataproc cluster to the Databricks clusters (same machine
-  types and worker count).
-- **Label the cluster/job** with `project`, `engine=dataproc`, and `run_id=<dataproc job id>`
-  so the run's VM cost is attributable in the billing view.
-- **Set the per-job IAM policy** for the data-collector service principal after submitting each
-  job — see [prerequisites.md §4](prerequisites.md#4-dataproc-per-job-access-the-submitters-extra-step).
+- **labels** the job `project` / `engine=dataproc` / `run_id=<dataproc job id>` so its VM cost
+  is attributable in the billing view;
+- **grants** the `gcp-data-collector` SA `dataproc.jobs.get` on that job only (per-job IAM);
+- **prints the `run_id`** — feed it to `collect_dataproc --run-ids`.
+
+Match the Dataproc cluster hardware to the Databricks clusters for a fair comparison. The
+submit is a call to `dataproc.googleapis.com`, reachable from classic Databricks compute over
+Private Google Access (no public egress needed).
 
 ## 6.2 · Measure & monitor
 
@@ -77,10 +80,10 @@ secret scope.
 
 | Principal | Type | Does | Access |
 |---|---|---|---|
-| `gcp-dataproc-runner` | GCP SA | submit the Dataproc job (invoked from a Databricks job) | `dataproc.jobs.create` on the cluster |
+| `gcp-dataproc-runner` | GCP SA | submit the Dataproc job (invoked from a Databricks job) | `dataproc.jobs.create` + `dataproc.jobs.setIamPolicy` on the cluster |
 | `gcp-data-collector` | GCP SA | Dataproc runtimes + BigQuery costs | `dataproc.jobs.get` (per-job) + BigQuery view read |
-| `bench-runner` | Databricks SP | runs the Photon/Spark jobs + triggers the Dataproc submit | read `customer_data_ro`, write `analytics.workloads` |
-| `bench-collector` | Databricks SP | materializes the results table | write `analytics.benchmark`, read system tables, read the secret scope |
+| `bench-runner` | Databricks SP | runs the Photon/Spark jobs + submits Dataproc | read `customer_data_ro`, write `analytics.workloads`; reads the dataproc-runner key |
+| `bench-collector` | Databricks SP | materializes the results table | write `analytics.benchmark`, read system tables; reads the data-collector key |
 | `bench-analyst` | Databricks SP | builds the dashboard | read `analytics.benchmark` only |
 
 Creating the principals, assigning the SPs to the workspace, the runner's
@@ -90,19 +93,24 @@ secret ACLs are all in **[prerequisites.md](prerequisites.md)**.
 ## Layout
 
 ```
-databricks.yml            bundle: variables (engine, compute, collector config) + dev/prod
+databricks.yml            bundle: variables (engine, compute, Dataproc, dashboard) + dev/prod
 resources/
   sample_job.yml          the workload job (1 file → 1 task); retries, nodes, failure email, tags
+  run_dataproc.yml        the Dataproc submit job (bench-runner)
   collectors.yml          the two cost collectors as on-demand jobs
+  dashboard.yml           the Lakeview dashboard resource
 src/
   sample_job.py           minimal, engine-agnostic pyspark workload
+  submit_dataproc.py      submit the file to Dataproc + label + per-job IAM (bench-runner)
   collect_dbx.py          system tables (DBU) + BQ view (VM) → results
   collect_dataproc.py     Dataproc API (runtime) + BQ view (VM) → results
   bq_billing.py           shared: read VM cost per run_id from the scoped BQ view
 sql/
   results_table.sql       DDL for analytics.benchmark.results
   grants.sql              schemas + least-privilege grants for the service principals
-prerequisites.md          Phase 5 setup: BigQuery export/view, service principals, secrets
+dashboard/
+  benchmark.lvdash.json   the Lakeview dashboard (Photon vs Spark vs Dataproc)
+prerequisites.md          Phase 5 setup: BigQuery export/view, GCP SAs, service principals, secrets
 ```
 
 ## How to run
@@ -118,11 +126,12 @@ databricks bundle deploy
 databricks bundle run sample_job                                          # Photon (default)
 databricks bundle run sample_job -- --var="engine=STANDARD" --var="engine_tag=spark"
 
-# 2) submit the same file on Dataproc (dataproc-runner), then set the per-job IAM for the SP
+# 2) submit the same file to Dataproc (bench-runner); prints the run_id to collect
+databricks bundle run run_dataproc
 
 # 3) after runs + billing export settle, collect costs
 databricks bundle run collect_dbx
-databricks bundle run collect_dataproc -- --job-name=<name> --run-ids=<id1,id2,...>
+databricks bundle run collect_dataproc -- --job-name=sample_job --run-ids=<id1,id2,...>
 ```
 
 ## Notes

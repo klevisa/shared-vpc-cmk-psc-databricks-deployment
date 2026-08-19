@@ -1,0 +1,9 @@
+resources:
+  dashboards:
+    # Lakeview dashboard over analytics.benchmark.results — deploys with the bundle
+    # (dashboard-as-code). Grant bench-analyst SELECT on analytics.benchmark (grants.sql)
+    # so the published dashboard's queries resolve.
+    benchmark_dashboard:
+      display_name: "Dataproc vs Photon — Benchmark"
+      file_path: ../dashboard/benchmark.lvdash.json
+      warehouse_id: ${var.warehouse_id}

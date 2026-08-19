@@ -21,7 +21,7 @@ resources:
               - "--results-table=${var.results_table}"
               - "--bq-view=${var.bq_billing_view}"
               - "--secret-scope=${var.secret_scope}"
-              - "--secret-key=${var.secret_key}"
+              - "--secret-key=${var.data_collector_secret_key}"
           libraries:
             - pypi:
                 package: google-cloud-bigquery
@@ -51,7 +51,7 @@ resources:
               - "--results-table=${var.results_table}"
               - "--bq-view=${var.bq_billing_view}"
               - "--secret-scope=${var.secret_scope}"
-              - "--secret-key=${var.secret_key}"
+              - "--secret-key=${var.data_collector_secret_key}"
           libraries:
             - pypi:
                 package: google-cloud-dataproc

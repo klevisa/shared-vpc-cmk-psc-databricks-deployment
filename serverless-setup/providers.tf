@@ -1,4 +1,4 @@
-# Serverless setup runs AFTER the workspace exists (Phase 3). Everything here is the
+# Serverless setup runs AFTER the workspace exists (step 2.4). Everything here is the
 # Databricks ACCOUNT API — the Network Connectivity Config, its workspace binding, and
 # the optional serverless egress network policy are all account-level objects. So there
 # is a single provider: the account admin, authenticating by impersonating the Data

@@ -4,7 +4,7 @@
 # Serverless compute does NOT run in your Shared VPC — it runs in Databricks-owned
 # projects. The NCC governs how that serverless plane egresses and connects, and it
 # gives the workspace STABLE, per-region Databricks project IDs — the same project
-# numbers you source-pin the VPC-SC ingress to in ../catalog-setup (see that config's
+# numbers you source-pin the VPC-SC ingress to in ../data-access (see that config's
 # `databricks_source_projects`). Create the NCC in the workspace's region, then bind it.
 # -----------------------------------------------------------------------------
 

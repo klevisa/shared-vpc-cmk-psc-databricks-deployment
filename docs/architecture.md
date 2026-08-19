@@ -1,6 +1,6 @@
 # Architecture
 
-> ← Back to the [PoC playbook](../README.md) · detail for [Stage 1](../workspace-setup-multi-team/README.md)
+> ← Back to the [PoC playbook](../README.md) · detail for [Phase 2 · Workspace Setup](../workspace-setup/README.md)
 
 Three domains: the **host** project (network), the **service** project (Databricks
 compute + CMEK), and the **Databricks** control plane (its own projects). PSC is the

@@ -5,10 +5,10 @@ variable "account_admin_sa" {
   description = "The Databricks ACCOUNT ADMIN SA (from prereqs). NCC, binding, and the network policy are all account-API objects."
 }
 
-# ---- Handoff from Phase 3 (databricks-account) ----
+# ---- Handoff from step 2.4 (workspace) ----
 variable "workspace_id" {
   type        = string
-  description = "From databricks-account output workspace_id — the workspace the NCC (and optional network policy) is bound to."
+  description = "From workspace output workspace_id — the workspace the NCC (and optional network policy) is bound to."
 }
 variable "databricks_region" {
   type        = string

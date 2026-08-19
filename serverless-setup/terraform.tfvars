@@ -6,7 +6,7 @@
 databricks_account_id = "00000000-0000-0000-0000-000000000000"
 account_admin_sa      = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com" # the account admin (from prereqs)
 
-# ---- from Phase 3 (databricks-account) ----
+# ---- from step 2.4 (workspace) ----
 workspace_id      = "1234567890123456"
 databricks_region = "us-central1" # MUST match the workspace region
 

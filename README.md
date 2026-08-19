@@ -1,176 +1,105 @@
 # Databricks Photon PoC — Playbook
 
-This repository is the end-to-end plan for running the Databricks **Photon proof of concept**
-with the client on Google Cloud. It takes you from an empty project to a measured result:
+The end-to-end plan for running the Databricks **Photon proof of concept** with the client on
+Google Cloud, as an ordered set of phases. Each step has a clear **owner**, the **privileges**
+it needs (GCP or Databricks), and the **output** it produces. This page is the map; every step
+links to its own guide for the detail.
 
-> Stand up a **secure workspace** → give it **governed access** to the client's data →
-> deploy the agreed **PySpark workloads on Photon** (with a plain-Spark baseline) →
-> **measure cost and runtime** against the client's existing Dataproc runs.
+> Set up the Databricks **account** → stand up a **secure workspace** → give it **governed
+> access** to the data → bring in **serverless** → deploy the agreed **PySpark workloads on
+> Photon** (with a Spark baseline) → **measure cost and runtime** against Dataproc.
 
-Each stage is a self-contained unit of work with a clear owner and a clear output. This page
-is the map; every stage links to its own guide for the step-by-step detail.
-
----
-
-## The PoC at a glance
+## At a glance
 
 ```mermaid
 flowchart TB
-    PRE["Prerequisites<br/>Databricks account · account admin · metastore"]
-    S1["Stage 1 · Enable the workspace<br/>host VPC · subnets · firewall · CMEK · private connectivity"]
-    S2["Stage 2 · Network security (VPC Service Controls)<br/>ingress / egress rules around the data"]
-    S3["Stage 3 · Governed dataset access<br/>read catalog + read-write analytics catalog"]
-    S4["Stage 4 · Serverless compute<br/>bring serverless into the workspace"]
-    S5["Stage 5 · Deploy the Photon workloads<br/>each PySpark file → a Databricks job"]
-    S6["Stage 6 · Monitoring dashboards<br/>Lakeview over the results"]
-    S7["Stage 7 · Measure &amp; tune<br/>cost + runtime per run"]
-
-    PRE --> S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
+    P1["1 · Databricks Account Setup<br/>account · admin · metastore · IdP sync"]
+    P2["2 · Workspace Setup<br/>service project · network · CMEK · workspace"]
+    P3["3 · Data Access<br/>read-only + read-write catalogs"]
+    P4["4 · Serverless Setup<br/>NCC · perimeter · firewall"]
+    P5["5 · Benchmark Setup<br/>billing export · service principals"]
+    P6["6 · Benchmark<br/>run · measure · dashboard"]
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6
 ```
 
-> **Stages vs. folders.** The seven stages group into four folders, and each folder keeps its
-> own internal numbering — so a folder's numbers won't always match the stage numbers above:
->
-> | Stage(s) | Folder | Internal numbering |
-> |---|---|---|
-> | 1 | `workspace-setup-multi-team/` | five ordered sub-steps, **Phases 0–5** |
-> | 2–3 | `catalog-setup/` | one config (perimeter ingress + both catalogs together) |
-> | 4 | `serverless-setup/` | one config |
-> | 5–7 | `benchmark/` | one bundle (deploy, dashboard, measure together) |
+Each phase maps to one folder; a folder may hold several ordered sub-steps.
 
-## Who does what
-
-| Team | Owns |
+| Phase | Folder |
 |---|---|
-| **Databricks Account Admin** | the Databricks account, account admin, metastore, service principals, and Unity Catalog grants |
-| **Cloud Foundation** | GCP projects, API enablement, the Shared VPC relationship |
-| **Network Engineering** | VPC, subnets, firewall, Private Service Connect, DNS |
-| **Cloud Security / KMS** | the customer-managed encryption key (CMEK) |
-| **Cloud / Network Security** | the VPC Service Controls perimeter and its ingress rules |
-| **Data Platform** | workspace creation, serverless, catalogs, workloads, dashboards, and measurement |
-| **Dataset / bucket owners** | read-only access to the client's existing data bucket |
-
-## Prerequisites
-
-Three Databricks-side things must exist before Stage 1: a **Databricks account**, an
-**account admin**, and a **Unity Catalog metastore** in the workspace's region. They are set
-up once and feed directly into the workspace stage.
-
-→ **[docs/databricks-prerequisites.md](docs/databricks-prerequisites.md)**
-
-**A VPC Service Controls perimeter must also already exist**, owned by the client's
-**Cloud / Network Security** team. Its resource path —
-`accessPolicies/<policy>/servicePerimeters/<name>` — is needed before Stage 3
-(`catalog-setup`) can run.
-
-> **Pick one GCP region and use it everywhere.** The region is a single decision that must be
-> consistent across every phase — it determines the metastore region, the PSC endpoints, and
-> the serverless NCC binding. Set the same region in every config's `terraform.tfvars`.
+| 1. Databricks Account Setup | [`databricks-account-setup/`](databricks-account-setup/README.md) |
+| 2. Workspace Setup | [`workspace-setup/`](workspace-setup/README.md) (steps 2.1–2.5) |
+| 3. Data Access | [`data-access/`](data-access/README.md) |
+| 4. Serverless Setup | [`serverless-setup/`](serverless-setup/README.md) |
+| 5. Benchmark Setup | [`benchmark/prerequisites.md`](benchmark/prerequisites.md) |
+| 6. Benchmark | [`benchmark/`](benchmark/README.md) |
 
 ---
 
-## Stage 1 — Enable the Databricks workspace
+## 1. Databricks Account Setup
+→ [`databricks-account-setup/`](databricks-account-setup/README.md)
 
-A secure Databricks workspace on a GCP Shared VPC: the network lives in a **host project**,
-the workspace's compute and storage live in a **service project**, all traffic rides
-**Private Service Connect**, and data is encrypted with a **customer-managed key**.
+| Step | Prereqs | Teams | Privileges | Output |
+|---|---|---|---|---|
+| **1.1 Databricks Account Setup** | None | Databricks + GCP Billing Admin | None | Account, account admin, regional metastore |
+| **1.2 IdP Sync** | 1.1 | Databricks + IdP Admin | **Databricks:** account admin · **IdP:** SCIM admin | Customer identities/groups in Databricks |
 
-The work is split into ordered sub-steps, each run by the team that owns that layer:
+## 2. Workspace Setup
+→ [`workspace-setup/`](workspace-setup/README.md) — a secure workspace on a Shared VPC (private connectivity + CMEK), built by the platform teams in order.
 
-| Sub-step | What it builds | Owner |
-|---|---|---|
-| Foundation | service project, API enablement, Shared VPC relationship | Cloud Foundation |
-| Host network | VPC, subnets, firewall, PSC endpoints, DNS | Network Engineering |
-| CMEK | the encryption key and its grants | Cloud Security / KMS |
-| Workspace | the Databricks workspace itself (account API) | Data Platform |
-| Handback | workspace-SA subnet grant + DNS records | Network Engineering |
+| Step | Prereqs | Teams | Privileges | Output |
+|---|---|---|---|---|
+| **[2.1 Create service project](workspace-setup/service-project/README.md)** | 1.1 + GCP host project exists | GCP Cloud Foundations | **GCP:** project creator, billing, Shared VPC admin (org/folder) | Service project created; its APIs enabled; attached to the existing Shared VPC host; service-project number + GCS service agent |
+| **[2.2 Create network](workspace-setup/network/README.md)** | service project exists | GCP Network Engineering | **GCP:** network + firewall + DNS admin (host project) | VPC + node/PSC subnets, firewall, Cloud Router+NAT, two PSC endpoints (PENDING), private DNS zone, subnet grants |
+| **[2.3 CMEK](workspace-setup/cmek/README.md)** | service project exists | Cloud Security / KMS | **GCP:** KMS admin (service project) | CMEK keyring + key; compute & storage agents granted encrypt/decrypt |
+| **[2.4 Workspace creation](workspace-setup/workspace/README.md)** | network + encryption keys | Databricks | **Databricks:** account admin (account API) | Workspace (URL, id, workspace SA); CMEK+PSC+network registered; assigned to the regional metastore |
+| **[2.5 Post-workspace config](workspace-setup/post-workspace/README.md)** | 2.4 complete | Network Eng / Cloud IAM | **GCP:** network-user grant + DNS admin (host project) | Workspace SA `networkUser` on node subnet; DNS A-records; PSC endpoints ACCEPTED |
 
-**Produces:** a running workspace — its URL, id, and workspace service account.
+## 3. Data Access
+→ [`data-access/`](data-access/README.md)
 
-→ **[workspace-setup-multi-team/](workspace-setup-multi-team/README.md)** · architecture in
-**[docs/architecture.md](docs/architecture.md)**
+| Step | Prereqs | Teams | Privileges | Output |
+|---|---|---|---|---|
+| **[3.1 Connect to data lake (RO) + PoC bucket (RW)](data-access/README.md)** | Workspace setup complete | Data Platform + Network Security + bucket owners | **Databricks:** account admin (scoped UC CREATE grants) · **GCP:** bucket/storage IAM + VPC-SC admin | Read-only `customer_data_ro` catalog + read-write `analytics` catalog; storage credentials; per-bucket VPC-SC ingress (source-pinned) |
 
-## Stage 2 — Network security (VPC Service Controls)
+## 4. Serverless Setup
+→ [`serverless-setup/`](serverless-setup/README.md)
 
-A VPC Service Controls perimeter keeps the client's data from leaving approved projects.
-Access is granted with **ingress rules**: each data bucket the workspace reads or writes gets
-a rule admitting exactly the Databricks storage identity that needs it. Egress stays closed.
+| Step | Prereqs | Teams | Privileges | Output |
+|---|---|---|---|---|
+| **[4.1 Update VPC-SC perimeter](serverless-setup/README.md)** | Workspace + data access | Network Security + Data Platform | **Databricks:** account admin (NCC) · **GCP:** VPC-SC perimeter admin | NCC bound to workspace; VPC-SC ingress source-pinned to include Databricks serverless-compute project numbers |
+| **[4.2 Firewall rules for serverless](serverless-setup/README.md)** | perimeter updated | Network Security + Data Platform | **Databricks:** account admin (egress policy) · **GCP:** firewall admin (host project) | Serverless egress network policy; Databricks serverless-compute outbound IPs allowlisted on the firewall |
 
-**Owner:** the perimeter itself is provisioned by **Cloud / Network Security**; the concrete
-**ingress rules** are configured by **Data Platform** in the `catalog-setup` config, per
-bucket (they travel with the storage credential that uses them). **Produces:** ingress rules
-on the perimeter for each governed bucket.
+> **Phases 3 and 4 both touch the VPC-SC perimeter, and that's intentional.** They're kept as
+> separate steps so the client can reason about "data access" and "serverless" independently,
+> even though the perimeter changes could be combined into one for efficiency.
 
-→ configured in **[catalog-setup/](catalog-setup/README.md)** (same config as Stage 3)
+## 5. Benchmark Setup
+→ [`benchmark/prerequisites.md`](benchmark/prerequisites.md)
 
-## Stage 3 — Governed access to the datasets (read & write)
+| Step | Prereqs | Teams | Privileges | Output |
+|---|---|---|---|---|
+| **[5.1 BigQuery detailed billing export + view](benchmark/prerequisites.md)** | Workspace + data access complete; GCP billing export rights | GCP Billing + Security | **GCP:** billing admin + BigQuery admin | Detailed (resource-level) billing export; scoped authorized view; SP read on the view only |
+| **[5.2 SP creation](benchmark/prerequisites.md)** | 5.1; workspace + catalogs | Databricks + GCP IAM admin | **Databricks:** account admin · **GCP:** IAM admin | 5 principals (GCP: dataproc-runner + data-collector SAs; Databricks: bench-runner, bench-collector, bench-analyst); GCP SA keys in the secret scope; run-as wired |
 
-Unity Catalog governs what the workspace can see, over two catalogs:
+## 6. Benchmark
+→ [`benchmark/`](benchmark/README.md)
 
-- a **read-only** catalog over the client's **existing** data bucket — read their data without
-  ever writing to it;
-- a **read-write** `analytics` catalog on a **new** bucket — where PoC outputs and results land.
-
-Each catalog is backed by a storage credential (its own Google service account) with
-least-privilege bucket IAM and the matching VPC-SC ingress rule from Stage 2.
-
-**Owner:** Data Platform (+ the bucket owners for read-only IAM). **Produces:** the
-`customer_data_ro` and `analytics` catalogs.
-
-→ **[catalog-setup/](catalog-setup/README.md)**
-
-## Stage 4 — Serverless compute *(optional)*
-
-Brings **serverless** into the workspace via a Network Connectivity Configuration (and an
-optional serverless egress policy). This is the workspace's serverless capability; the Photon
-benchmark itself runs on classic job clusters, so serverless is available but not on the
-measurement path — **skip this stage if serverless compute isn't needed**.
-
-**Owner:** Data Platform. **Produces:** an NCC bound to the workspace.
-
-→ **[serverless-setup/](serverless-setup/README.md)**
-
-## Stage 5 — Deploy the Photon workloads
-
-Each agreed PySpark file becomes **one Databricks job**, deployed with **Databricks Asset
-Bundles** (`databricks bundle deploy` / CI). Every file runs three ways for comparison:
-**Photon**, a plain-**Spark** baseline (identical hardware), and the client's **Dataproc** run
-of the same file.
-
-**Owner:** Data Platform. **Produces:** the deployed jobs and their runs.
-
-→ **[benchmark/](benchmark/README.md)**
-
-## Stage 6 — Monitoring dashboards
-
-A **Lakeview** dashboard (Databricks' built-in dashboards — the outline's "Grafana" role)
-reads the results and shows per-job cost and runtime, Photon vs. Spark vs. Dataproc.
-
-**Owner:** Data Platform. **Produces:** the results dashboard.
-
-→ **[benchmark/](benchmark/README.md)**
-
-## Stage 7 — Measure & tune
-
-Collect the numbers into a single Delta table, one row per run keyed by `run_id`: **cost** =
-Databricks DBU + GCP VM cost, plus **runtime**. Compare, then tune (cluster size, data layout)
-and re-run.
-
-**Owner:** Data Platform. **Produces:** `analytics.benchmark.results`.
-
-→ **[benchmark/](benchmark/README.md)** · GCP-side setup in
-**[benchmark/prerequisites.md](benchmark/prerequisites.md)**
+| Step | Prereqs | Teams | Privileges | Output |
+|---|---|---|---|---|
+| **[6.1 Run benchmark jobs](benchmark/README.md)** | Benchmark setup complete; workloads deployed | Data Platform + GCP Dataproc | **Databricks:** bench-runner SP · **GCP:** dataproc-runner SA | Each PySpark file run 3 ways (Photon / Spark / Dataproc); runs tagged project/engine/run_id |
+| **[6.2 Measure & monitor](benchmark/README.md)** | Benchmark runs complete; billing export settled | Data Platform + GCP data-collector | **Databricks:** bench-collector + bench-analyst SPs · **GCP:** data-collector SA | `analytics.benchmark.results` (DBU + GCP VM cost + runtime per run); Lakeview dashboard: Photon vs Spark vs Dataproc |
 
 ---
 
 ## Repo layout
 
 ```
-docs/                        prerequisites + architecture (the deep reference)
-workspace-setup-multi-team/  Stage 1 — the secure workspace (five ordered sub-steps)
-catalog-setup/               Stages 2–3 — VPC-SC ingress + the two Unity Catalog catalogs
-serverless-setup/            Stage 4 — serverless compute (NCC)
-benchmark/                   Stages 5–7 — deploy workloads, dashboards, measure & tune
+databricks-account-setup/  Phase 1 — account, admin, metastore, IdP sync (account-console setup)
+workspace-setup/           Phase 2 — the secure workspace (steps 2.1–2.5, each its own config)
+data-access/               Phase 3 — read-only + read-write Unity Catalog catalogs over GCS
+serverless-setup/          Phase 4 — serverless compute (NCC, perimeter, firewall)
+benchmark/                 Phases 5–6 — deploy workloads, run, measure; setup in prerequisites.md
+docs/                      architecture reference
 ```
 
 > **Example values.** Project ids, names, CIDRs, and account ids in each `terraform.tfvars`

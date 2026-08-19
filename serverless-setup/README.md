@@ -1,40 +1,56 @@
-# Stage 4 — Serverless compute
+# 4. Serverless Setup
 
 > ← Back to the [PoC playbook](../README.md)
 
-**Purpose:** bring **serverless compute** into the workspace.
-**Owner:** Data Platform.
-**Produces:** a Network Connectivity Configuration (NCC) bound to the workspace, and an
-optional serverless egress policy.
+**Purpose:** bring **serverless compute** into the workspace and let it reach the data.
+**Owner:** Cloud/Network Security + Data Platform.
+**Produces:** a Network Connectivity Configuration (NCC) bound to the workspace, the perimeter
+ingress that admits serverless, and the serverless egress controls.
 
 Serverless does **not** run in the Shared VPC — it runs in Databricks-owned GCP projects — so
 the classic networking (subnets, PSC backend, NAT) doesn't govern it. Two account-level
-controls do: a **Network Connectivity Config (NCC)** and an optional **serverless egress
-network policy**. (The Photon benchmark runs on classic job clusters, so serverless is a
-workspace capability here, not part of the measurement path.)
+controls do: a **Network Connectivity Config (NCC)** and a **serverless egress network
+policy**. (The Photon benchmark runs on classic job clusters, so serverless is a workspace
+capability here, not part of the measurement path.)
 
-## What it does
+> **Perimeter changes are split across Phases 3 and 4 on purpose.** Phase 3 adds the ingress
+> for data access; this phase adds what serverless needs. They could be one perimeter change
+> for efficiency, but they're kept separate so the client can reason about "data access" and
+> "serverless" independently.
 
-**NCC + binding (always):**
-- creates a Network Connectivity Config in the workspace's region and **binds it to the workspace** — the anchor for serverless egress/connectivity, and the source of the **stable, per-region Databricks project IDs** used for VPC-SC and firewall allowlisting
+## 4.1 · Update VPC-SC perimeter
 
-**Serverless egress lockdown (optional — `restrict_serverless_egress`):**
-- creates a `RESTRICTED_ACCESS` network policy (allowed FQDNs you specify) and points the workspace at it, defaulting to **`DRY_RUN`** so violations are logged, not blocked — roll out safely, then flip to `ENFORCED`
+- create a Network Connectivity Config in the workspace's region and **bind it to the workspace** — the anchor for serverless egress/connectivity
+- ensure the VPC-SC ingress is **source-pinned to include Databricks' serverless-compute project numbers** for your region (the pin lives in [`../data-access`](../data-access/README.md)'s `databricks_source_projects`) — those entries are what admit the serverless plane to the catalogs
+
+## 4.2 · Firewall rules for serverless
+
+- create a `RESTRICTED_ACCESS` serverless egress **network policy** (allowed FQDNs you specify), defaulting to **`DRY_RUN`** so violations are logged, not blocked — roll out safely, then flip to `ENFORCED`
+- **allowlist Databricks' serverless-compute outbound IPs on your firewall** — see the automation note below
+
+> **You must automate the serverless outbound-IP allowlist.** Databricks publishes the
+> serverless-compute outbound IPs at
+> [ip-domain-region → Outbound IPs for serverless compute (firewall)](https://docs.databricks.com/gcp/en/resources/ip-domain-region#outbound-ips-for-serverless-compute-firewall-preview).
+> **Unlike the source-pinning project numbers in 4.1 (which are stable), these IP ranges
+> rotate** — it's a preview feed with a timestamp. A one-time manual firewall entry **will
+> silently break** when the list changes. So the customer **must build automation** that
+> periodically fetches `ip-ranges.json`, diffs it, and updates the firewall allowlist. Treat
+> this as a required, customer-owned follow-up — not a one-time manual step.
 
 > **How serverless reaches the data.** Serverless reads the catalogs through Unity Catalog,
 > as the storage-credential SA — and that data access is admitted by the **VPC-SC ingress
-> rule** in [`../catalog-setup`](../catalog-setup/) (`catalog-readonly.tf` /
+> rule** in [`../data-access`](../data-access/) (`catalog-readonly.tf` /
 > `catalog-readwrite.tf`). That ingress is source-pinned via `databricks_source_projects` to
 > Databricks' control-plane **and serverless-compute** project numbers — the serverless-compute
 > entries are what admit this serverless plane. In short: this stage enables serverless; the
-> `catalog-setup` ingress, pinned to include the serverless-compute projects, is what lets it
+> `data-access` ingress, pinned to include the serverless-compute projects, is what lets it
 > reach the data.
 
 ## Pre-reqs
 
-- **Workspace setup complete** (`workspace-setup-multi-team/`); you have the `workspace_id` (Phase 3 output) and its region.
+- **Workspace setup complete** (`workspace-setup/`); you have the `workspace_id` (step 2.4 output) and its region.
 - **Account admin exists** (prereq) — the identity this config impersonates.
-- The `catalog-setup` ingress is source-pinned to include the **serverless-compute** project numbers for your region (see [`../catalog-setup`](../catalog-setup/README.md) and the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region)) — that's what admits serverless to the data.
+- The `data-access` ingress is source-pinned to include the **serverless-compute** project numbers for your region (see [`../data-access`](../data-access/README.md) and the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region)) — that's what admits serverless to the data.
 
 ## Privileges needed
 
@@ -50,7 +66,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 **⬅️ Carried over from a previous phase:**
 
-- `workspace_id` : from **Phase 3** (`databricks-account`) output `workspace_id`
+- `workspace_id` : from **step 2.4** (`workspace`) output `workspace_id`
 - `databricks_region` : the workspace's region — the NCC **must** match it
 - `databricks_account_id` : your Databricks account id
 
@@ -78,9 +94,9 @@ terraform init && terraform apply -var-file=terraform.tfvars && terraform output
 Databricks projects rather than your VPC, you can't govern it with VPC firewall rules or
 subnets. The NCC is what gives you a handle: it anchors the serverless plane's egress and
 exposes **stable, per-region Databricks project IDs** — the values you'd add to the
-`catalog-setup` VPC-SC ingress (`databricks_source_projects`) and to firewall allowlists.
+`data-access` VPC-SC ingress (`databricks_source_projects`) and to firewall allowlists.
 Those project numbers are stable; the **IP ranges** are the churny part (see the firewall
-TODO in `workspace-setup-multi-team/host-network/network.tf` and
+TODO in `workspace-setup/network/network.tf` and
 [`ip-ranges.json`](https://www.databricks.com/networking/v1/ip-ranges.json)).
 
 **Egress lockdown — roll out in DRY_RUN first.** Switching serverless to

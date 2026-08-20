@@ -37,7 +37,7 @@ step (`src/submit_dataproc.py`) does everything the cost join needs:
 - **labels** the job `project` / `engine=dataproc` / `run_id=<dataproc job id>` so its VM cost
   is attributable in the billing view;
 - **grants** the `gcp-data-collector` SA `dataproc.jobs.get` on that job only (per-job IAM);
-- **prints the `run_id`** — feed it to `collect_dataproc --run-ids`.
+- **records the `run_id`** in `analytics.benchmark.dataproc_runs`, so `collect_dataproc` picks it up automatically — no ids to copy by hand.
 
 Match the Dataproc cluster hardware to the Databricks clusters for a fair comparison. The
 submit is a call to `dataproc.googleapis.com`, reachable from classic Databricks compute over
@@ -48,8 +48,8 @@ Private Google Access (no public egress needed).
 Every run lands one row in `analytics.benchmark.results` (see `sql/results_table.sql`), keyed
 by `run_id`. Cost has two parts:
 
-- **Databricks runs:** DBU $ (`system.billing.usage`, keyed by `job_run_id`) + runtime
-  (`system.lakeflow.job_run_timeline`) **+** VM $ (the BigQuery billing view).
+- **Databricks runs:** DBU \$ (`system.billing.usage`, keyed by `job_run_id`) + runtime
+  (`system.lakeflow.job_run_timeline`) **+** VM \$ (the BigQuery billing view).
 - **Dataproc runs:** runtime (from the Dataproc Jobs API) **+** VM $ (same billing view).
 
 `run_id` is the join key on both cost sources: on Databricks it is injected as a VM label via
@@ -106,8 +106,8 @@ src/
   collect_dataproc.py     Dataproc API (runtime) + BQ view (VM) → results
   bq_billing.py           shared: read VM cost per run_id from the scoped BQ view
 sql/
-  results_table.sql       DDL for analytics.benchmark.results
-  grants.sql              schemas + least-privilege grants for the service principals
+  results_table.sql       schemas + the results & dataproc_runs (run-tracking) tables
+  grants.sql              least-privilege grants for the service principals
 dashboard/
   benchmark.lvdash.json   the Lakeview dashboard (Photon vs Spark vs Dataproc)
 prerequisites.md          Phase 5 setup: BigQuery export/view, GCP SAs, service principals, secrets
@@ -119,19 +119,19 @@ Complete the Phase 5 setup first — **[prerequisites.md](prerequisites.md)** (B
 export, scoped billing view, service principals + secrets, Dataproc per-job IAM). Then:
 
 ```bash
-# 0) one-time: create the results table (sql/results_table.sql) and run grants (sql/grants.sql)
+# 0) one-time: create schemas + tables (sql/results_table.sql), THEN grants (sql/grants.sql)
 
 # 1) deploy, then run the two Databricks engines
 databricks bundle deploy
 databricks bundle run sample_job                                          # Photon (default)
 databricks bundle run sample_job -- --var="engine=STANDARD" --var="engine_tag=spark"
 
-# 2) submit the same file to Dataproc (bench-runner); prints the run_id to collect
+# 2) submit the same file to Dataproc (bench-runner); records the run_id in the tracking table
 databricks bundle run run_dataproc
 
-# 3) after runs + billing export settle, collect costs
+# 3) after runs + billing export settle, collect costs (run_ids come from the tracking table)
 databricks bundle run collect_dbx
-databricks bundle run collect_dataproc -- --job-name=sample_job --run-ids=<id1,id2,...>
+databricks bundle run collect_dataproc
 ```
 
 ## Notes

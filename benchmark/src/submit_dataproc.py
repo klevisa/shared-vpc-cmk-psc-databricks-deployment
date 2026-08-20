@@ -14,6 +14,7 @@ compute over Private Google Access (no public egress needed). The Dataproc job i
 in the client's Dataproc environment. Illustrative: install google-cloud-dataproc.
 """
 import argparse
+import datetime as dt
 import json
 import uuid
 
@@ -33,6 +34,7 @@ def main() -> None:
     ap.add_argument("--project-tag", default="dataproc-vs-photon")
     ap.add_argument("--data-collector-sa", required=True, help="SA to grant jobs.get on this job")
     ap.add_argument("--jobs-get-role", required=True, help="custom role with dataproc.jobs.get")
+    ap.add_argument("--runs-table", default="analytics.benchmark.dataproc_runs")
     ap.add_argument("--secret-scope", default="benchmark")
     ap.add_argument("--secret-key", default="gcp_dataproc_runner_key")
     args = ap.parse_args()
@@ -69,7 +71,13 @@ def main() -> None:
     )
     jc.set_iam_policy(request={"resource": resource, "policy": policy})
 
-    print(f"submit_dataproc: submitted run_id={run_id} to cluster {args.cluster}")
+    # 3) Record the run so collect_dataproc picks it up automatically (no manual --run-ids).
+    spark.createDataFrame(
+        [(run_id, args.job_name, "dataproc", dt.datetime.utcnow())],
+        schema="run_id string, job_name string, engine string, submitted_at timestamp",
+    ).write.mode("append").saveAsTable(args.runs_table)
+
+    print(f"submit_dataproc: submitted run_id={run_id} to cluster {args.cluster} (recorded in {args.runs_table})")
 
 
 if __name__ == "__main__":

@@ -12,15 +12,18 @@
 -- SP creation, workspace assignment, the runner's allow-cluster-create entitlement, the
 -- secret-scope READs, and enabling the system schemas are documented in prerequisites.md.
 
--- Two schemas: keep job outputs and cost results separate so runner/collector don't overlap.
-CREATE SCHEMA IF NOT EXISTS analytics.workloads;   -- job outputs (runner writes, if jobs write)
-CREATE SCHEMA IF NOT EXISTS analytics.benchmark;   -- cost results table (collector writes)
+-- Schemas + tables are created by sql/results_table.sql — run it BEFORE this, since the
+-- runner's table-level grant below needs analytics.benchmark.dataproc_runs to already exist.
 
 -- ---- bench-runner: read the source data, write job outputs ----
 GRANT USE CATALOG ON CATALOG analytics TO `:runner`;
 GRANT USE SCHEMA, CREATE, MODIFY, SELECT ON SCHEMA analytics.workloads TO `:runner`;
 GRANT USE CATALOG ON CATALOG customer_data_ro TO `:runner`;
 GRANT USE SCHEMA, SELECT ON SCHEMA customer_data_ro.raw TO `:runner`;
+-- record submitted Dataproc runs — TABLE-level so the runner can't touch the results table
+-- or the rest of the collector's schema.
+GRANT USE SCHEMA ON SCHEMA analytics.benchmark TO `:runner`;
+GRANT SELECT, MODIFY ON TABLE analytics.benchmark.dataproc_runs TO `:runner`;
 
 -- ---- bench-collector: write the results table, read the system tables ----
 GRANT USE CATALOG ON CATALOG analytics TO `:collector`;

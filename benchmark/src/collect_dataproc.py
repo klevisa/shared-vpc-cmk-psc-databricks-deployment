@@ -1,7 +1,8 @@
 """Dataproc-side cost collector (unscheduled — run on demand).
 
-Given a job name + the list of Dataproc job (run) ids for it, writes platform='dataproc'
-rows to analytics.benchmark.results:
+Given a job name, resolves its Dataproc run ids from the tracking table
+(analytics.benchmark.dataproc_runs, populated by submit_dataproc) — or an explicit
+--run-ids override — and writes platform='dataproc' rows to analytics.benchmark.results:
   - duration  from the Dataproc Jobs API (jobs.get -> status_history: RUNNING -> terminal).
               The SP holds ONLY dataproc.jobs.get, granted per-job via jobs.setIamPolicy.
   - VM   $    from the SAME scoped BigQuery billing view (Dataproc VMs labeled with the
@@ -41,7 +42,8 @@ def _duration_seconds(job) -> float:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--job-name", required=True)
-    ap.add_argument("--run-ids", required=True, help="comma-separated Dataproc job ids")
+    ap.add_argument("--run-ids", default=None, help="comma-separated Dataproc job ids (override; default reads --runs-table)")
+    ap.add_argument("--runs-table", default="analytics.benchmark.dataproc_runs")
     ap.add_argument("--gcp-project", required=True)
     ap.add_argument("--dataproc-region", required=True)
     ap.add_argument("--results-table", default="analytics.benchmark.results")
@@ -49,12 +51,23 @@ def main() -> None:
     ap.add_argument("--secret-scope", default="benchmark")
     ap.add_argument("--secret-key", default="gcp_data_collector_key")
     args = ap.parse_args()
-    run_ids = [r.strip() for r in args.run_ids.split(",") if r.strip()]
 
     spark = SparkSession.builder.getOrCreate()
     from pyspark.dbutils import DBUtils
 
     dbutils = DBUtils(spark)
+
+    # Run ids: explicit override, else the ones submit_dataproc recorded for this job.
+    if args.run_ids:
+        run_ids = [r.strip() for r in args.run_ids.split(",") if r.strip()]
+    else:
+        run_ids = [
+            row["run_id"]
+            for row in spark.sql(
+                f"SELECT run_id FROM {args.runs_table} WHERE job_name = '{args.job_name}'"
+            ).collect()
+        ]
+
     creds = bq_billing.gcp_credentials(dbutils, args.secret_scope, args.secret_key)
 
     # 1) Duration per run from the Dataproc Jobs API.

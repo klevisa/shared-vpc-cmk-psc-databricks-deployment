@@ -42,10 +42,11 @@ resources:
           job_cluster_key: collector
           spark_python_task:
             python_file: ../src/collect_dataproc.py
-            # job-name and run-ids are supplied per invocation, e.g.:
-            #   databricks bundle run collect_dataproc -- \
-            #     --job-name=etl_daily --run-ids=abc123,def456
+            # run_ids default to the tracking table submit_dataproc wrote; override ad hoc with:
+            #   databricks bundle run collect_dataproc -- --run-ids=abc123,def456
             parameters:
+              - "--job-name=sample_job"
+              - "--runs-table=${var.dataproc_runs_table}"
               - "--gcp-project=${var.gcp_project}"
               - "--dataproc-region=${var.dataproc_region}"
               - "--results-table=${var.results_table}"

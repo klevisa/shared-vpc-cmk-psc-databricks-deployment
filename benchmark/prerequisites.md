@@ -73,7 +73,7 @@ lives in the Databricks secret scope; the Databricks SP that needs it reads it v
 | GCP SA | Read by | GCP access |
 |---|---|---|
 | `gcp-dataproc-runner` | `bench-runner` | `dataproc.jobs.create` on the client's cluster + `dataproc.jobs.setIamPolicy` (to grant the collector per-job) |
-| `gcp-data-collector` | `bench-collector` | read on the authorized view (§2) + `dataproc.jobs.get` (granted per-job by the runner — §4) |
+| `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query + `dataproc.jobs.get` (granted per-job by the runner — §4) |
 
 Store both keys in the secret scope:
 ```bash

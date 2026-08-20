@@ -45,4 +45,11 @@ resources:
           job_cluster_key: bench
           spark_python_task:
             python_file: ../src/sample_job.py
+            parameters:
+              # Photon coverage (Approach A): the job records what fraction of its plan
+              # ran on Photon, keyed by run_id, for collect_dbx to join into results.
+              - "--run-id={{job.run_id}}"
+              - "--job-name=sample_job"
+              - "--engine=${var.engine_tag}"
+              - "--coverage-table=${var.photon_coverage_table}"
           max_retries: ${var.max_retries}

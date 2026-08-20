@@ -113,7 +113,7 @@ separation of duties — people only *trigger* jobs (`CAN_MANAGE_RUN`) and *view
 
 | SP | Runs | Access |
 |---|---|---|
-| `bench-runner` | the workload jobs **and** the Dataproc submit | reads `source_data_ro`, writes `analytics.workloads`; READ on the `benchmark_runner` scope only |
+| `bench-runner` | the workload jobs **and** the Dataproc submit | reads `source_data_ro`, writes `analytics.workloads`, appends Photon coverage to `analytics.benchmark.photon_coverage`; READ on the `benchmark_runner` scope only |
 | `bench-collector` | `collect_dbx` / `collect_dataproc` | writes `analytics.benchmark`, reads system tables; READ on the `benchmark_collector` scope only |
 | `bench-analyst` | the dashboard | reads `analytics.benchmark` only |
 

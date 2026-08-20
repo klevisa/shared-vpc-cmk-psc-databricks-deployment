@@ -38,6 +38,8 @@ variables:
     default: analytics.benchmark.results
   dataproc_runs_table:
     default: analytics.benchmark.dataproc_runs # submit_dataproc records run_ids here; collect_dataproc reads them
+  photon_coverage_table:
+    default: analytics.benchmark.photon_coverage # sample_job records per-run Photon coverage here; collect_dbx joins it
   bq_billing_view:
     default: billing-project.benchmark_billing.vm_cost_by_run # scoped authorized view
   gcp_project:

@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS analytics.benchmark.results (
   dbu_cost_usd    DOUBLE,      -- NULL for dataproc rows
   gcp_vm_cost_usd DOUBLE,      -- underlying VM cost from the BigQuery billing view
   total_cost_usd  DOUBLE,      -- dbu_cost_usd (if any) + gcp_vm_cost_usd
+  photon_coverage_pct DOUBLE,  -- % of executed-plan operator nodes that ran on Photon; NULL for dataproc (~0 on the spark baseline)
+  photon_fallback_ops STRING,  -- comma-separated non-Photon operators seen in the plan (diagnostic); NULL for dataproc
   source          STRING,      -- which collector wrote the row
   collected_at    TIMESTAMP
 ) USING DELTA;
@@ -29,4 +31,18 @@ CREATE TABLE IF NOT EXISTS analytics.benchmark.dataproc_runs (
   job_name     STRING,
   engine       STRING,     -- always 'dataproc'
   submitted_at TIMESTAMP
+) USING DELTA;
+
+-- Photon coverage per Databricks run (Approach A). sample_job (bench-runner) appends one
+-- row per run with the plan-based coverage; collect_dbx (bench-collector) joins it into
+-- results by run_id. Lives in analytics.benchmark, which the collector already owns.
+CREATE TABLE IF NOT EXISTS analytics.benchmark.photon_coverage (
+  run_id              STRING,
+  job_name            STRING,
+  engine              STRING,     -- photon | spark
+  photon_coverage_pct DOUBLE,     -- 100 * photon_ops / total_ops
+  photon_ops          INT,        -- executed-plan nodes named Photon*
+  total_ops           INT,        -- total executed-plan operator nodes
+  fallback_ops        STRING,     -- comma-separated non-Photon operator names (diagnostic)
+  measured_at         TIMESTAMP
 ) USING DELTA;

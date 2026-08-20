@@ -5,7 +5,7 @@
       "displayName": "Benchmark results",
       "queryLines": [
         "SELECT job_name, platform, engine, run_id, duration_s,\n",
-        "       dbu_cost_usd, gcp_vm_cost_usd, total_cost_usd\n",
+        "       dbu_cost_usd, gcp_vm_cost_usd, total_cost_usd, photon_coverage_pct\n",
         "FROM analytics.benchmark.results"
       ]
     }
@@ -43,7 +43,7 @@
               "frame": { "title": "Total cost by job & engine", "showTitle": true }
             }
           },
-          "position": { "x": 0, "y": 0, "width": 3, "height": 6 }
+          "position": { "x": 0, "y": 0, "width": 2, "height": 6 }
         },
         {
           "widget": {
@@ -73,7 +73,37 @@
               "frame": { "title": "Runtime by job & engine", "showTitle": true }
             }
           },
-          "position": { "x": 3, "y": 0, "width": 3, "height": 6 }
+          "position": { "x": 2, "y": 0, "width": 2, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "coverage_by_engine",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "results",
+                  "fields": [
+                    { "name": "job_name", "expression": "`job_name`" },
+                    { "name": "engine", "expression": "`engine`" },
+                    { "name": "avg_photon_coverage_pct", "expression": "AVG(`photon_coverage_pct`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "job_name", "scale": { "type": "categorical" }, "displayName": "Job" },
+                "y": { "fieldName": "avg_photon_coverage_pct", "scale": { "type": "quantitative" }, "displayName": "Photon coverage (%)" },
+                "color": { "fieldName": "engine", "scale": { "type": "categorical" }, "displayName": "Engine" }
+              },
+              "frame": { "title": "Photon coverage by job & engine", "showTitle": true }
+            }
+          },
+          "position": { "x": 4, "y": 0, "width": 2, "height": 6 }
         },
         {
           "widget": {
@@ -91,7 +121,8 @@
                     { "name": "duration_s", "expression": "`duration_s`" },
                     { "name": "dbu_cost_usd", "expression": "`dbu_cost_usd`" },
                     { "name": "gcp_vm_cost_usd", "expression": "`gcp_vm_cost_usd`" },
-                    { "name": "total_cost_usd", "expression": "`total_cost_usd`" }
+                    { "name": "total_cost_usd", "expression": "`total_cost_usd`" },
+                    { "name": "photon_coverage_pct", "expression": "`photon_coverage_pct`" }
                   ],
                   "disaggregated": true
                 }
@@ -109,7 +140,8 @@
                   { "fieldName": "duration_s", "displayName": "Runtime (s)" },
                   { "fieldName": "dbu_cost_usd", "displayName": "DBU $" },
                   { "fieldName": "gcp_vm_cost_usd", "displayName": "GCP VM $" },
-                  { "fieldName": "total_cost_usd", "displayName": "Total $" }
+                  { "fieldName": "total_cost_usd", "displayName": "Total $" },
+                  { "fieldName": "photon_coverage_pct", "displayName": "Photon %" }
                 ]
               }
             }

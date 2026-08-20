@@ -98,6 +98,16 @@ def main() -> None:
             schema="job_name string, platform string, engine string, run_id string, "
             "duration_s double, gcp_vm_cost_usd double, total_cost_usd double",
         )
+        # Carry the full results schema so the shared MERGE `INSERT */UPDATE SET *`
+        # resolves. These are Databricks-only fields — NULL for dataproc rows: runtime
+        # here comes from the Dataproc API (no lakeflow timeline), there are no DBUs, and
+        # Photon is a Databricks engine so coverage does not apply.
+        .withColumn("run_start", F.lit(None).cast("timestamp"))
+        .withColumn("run_end", F.lit(None).cast("timestamp"))
+        .withColumn("dbu", F.lit(None).cast("double"))
+        .withColumn("dbu_cost_usd", F.lit(None).cast("double"))
+        .withColumn("photon_coverage_pct", F.lit(None).cast("double"))
+        .withColumn("photon_fallback_ops", F.lit(None).cast("string"))
         .withColumn("source", F.lit("collect_dataproc"))
         .withColumn("collected_at", F.lit(now).cast("timestamp"))
     )

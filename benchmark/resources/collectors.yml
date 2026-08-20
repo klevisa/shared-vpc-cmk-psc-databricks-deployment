@@ -19,6 +19,7 @@ resources:
             parameters:
               - "--project-tag=${var.project_tag}"
               - "--results-table=${var.results_table}"
+              - "--coverage-table=${var.photon_coverage_table}"
               - "--bq-view=${var.bq_billing_view}"
               - "--secret-scope=${var.collector_secret_scope}"
               - "--secret-key=${var.data_collector_secret_key}"

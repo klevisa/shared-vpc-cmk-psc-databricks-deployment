@@ -26,6 +26,9 @@ GRANT USE SCHEMA, SELECT ON SCHEMA source_data_ro.raw TO `:runner`;
 -- the collector's schema.
 GRANT USE SCHEMA ON SCHEMA analytics.benchmark TO `:runner`;
 GRANT MODIFY ON TABLE analytics.benchmark.dataproc_runs TO `:runner`;
+-- sample_job (runner) also APPENDS its per-run Photon coverage. MODIFY only, no SELECT,
+-- TABLE-level — same least-privilege shape as dataproc_runs above.
+GRANT MODIFY ON TABLE analytics.benchmark.photon_coverage TO `:runner`;
 
 -- ---- bench-collector: write the results table, read the system tables ----
 GRANT USE CATALOG ON CATALOG analytics TO `:collector`;

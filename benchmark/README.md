@@ -57,6 +57,39 @@ by `run_id`. Cost has two parts:
 the `{{job.run_id}}` dynamic reference (equal to `usage_metadata.job_run_id`); on Dataproc it
 is the Dataproc job id set as a label. Per-run cost is therefore unambiguous.
 
+### Photon coverage
+
+Cost and runtime tell you *whether* Photon was faster; **coverage** tells you *why*. Photon
+doesn't accelerate everything — when it hits an unsupported operator (a Python UDF, RDD/Dataset
+APIs, some expressions) it transparently **falls back to JVM Spark** for that part. So each
+Databricks run also records what fraction of its query plan ran on Photon:
+
+- **`photon_coverage_pct`** in `results` — the share of the run's executed-plan operator nodes
+  that ran on the Photon engine.
+- **`photon_fallback_ops`** — the non-Photon operators seen in the plan (the diagnostic: *what*
+  fell back).
+
+`sample_job` computes this **in-job** (**Approach A**): after the query runs it walks the
+executed physical plan, counts `Photon*` operator nodes vs the total, and appends the result to
+`analytics.benchmark.photon_coverage` keyed by `run_id`; `collect_dbx` joins it into `results`.
+The **Spark baseline** run comes out ~0% (no Photon operators); **Dataproc** rows are NULL
+(no Photon engine). A low coverage on the Photon run — say a UDF forcing fallback — explains a
+weak speedup.
+
+> **A note on fidelity — and how to get the time-weighted number (Approach B).** Approach A is
+> a **node-count ratio**: a structural proxy for the time-weighted "**% of task time in
+> Photon**" that the Databricks **Query Profile** reports for SQL warehouses / serverless (the
+> `COVERAGE_PHOTON` insight). It's cheap, deterministic, needs no extra infrastructure, and
+> answers "how much of the plan Photonized, and what fell back" — but it is **not** an exact
+> time fraction. For a faithful **time-weighted** coverage on job clusters, attach a bundled JVM
+> **`QueryExecutionListener` / `SparkListener`** — pinned via `spark.extraListeners` through a
+> **cluster policy**, with the JAR shipped from a **UC Volume** on the allowlist — that reads
+> the executed plan plus the SQL metrics and computes real per-operator time. It's heavier to
+> stand up, so we leave it as a documented upgrade path rather than the default. (For a one-off
+> authoritative check you can also run the same SQL on a **serverless SQL warehouse** and read
+> its Query Profile's "% of task time in Photon" directly — but that's a different compute path
+> than the benchmarked job cluster, so treat it as a reference, not the benchmark's own number.)
+
 ```mermaid
 flowchart TB
     R["analytics.benchmark.results"]
@@ -69,8 +102,9 @@ flowchart TB
 ```
 
 The **Lakeview** dashboard over `analytics.benchmark.results` shows per-job total cost as a
-stacked bar (Databricks DBU + GCP VM) with the Dataproc bar beside it, plus runtime and
-price-performance views. It deploys with the bundle (dashboard-as-code). Tune from there —
+stacked bar (Databricks DBU + GCP VM) with the Dataproc bar beside it, plus runtime,
+price-performance, and **Photon-coverage** views. It deploys with the bundle
+(dashboard-as-code). Tune from there —
 cluster size, data layout — and re-run; each iteration is a one-line change plus `bundle run`.
 
 ## Identities (run-as, separation of duties)
@@ -83,7 +117,7 @@ secret scope.
 |---|---|---|---|
 | `gcp-dataproc-runner` | GCP SA | create the ephemeral cluster + submit the job (from a Databricks job) | project-level: `dataproc.clusters.create`/`delete` + `dataproc.jobs.create` + `dataproc.jobs.setIamPolicy`; plus `actAs` on the cluster VM SA |
 | `gcp-data-collector` | GCP SA | Dataproc runtimes + BigQuery costs | `dataproc.jobs.get` (per-job) + BigQuery view read |
-| `bench-runner` | Databricks SP | runs the Photon/Spark jobs + submits Dataproc | read `source_data_ro`, write `analytics.workloads`; reads only the `benchmark_runner` scope |
+| `bench-runner` | Databricks SP | runs the Photon/Spark jobs + submits Dataproc | read `source_data_ro`, write `analytics.workloads` + append Photon coverage; reads only the `benchmark_runner` scope |
 | `bench-collector` | Databricks SP | materializes the results table | write `analytics.benchmark`, read system tables; reads only the `benchmark_collector` scope |
 | `bench-analyst` | Databricks SP | builds the dashboard | read `analytics.benchmark` only |
 
@@ -101,13 +135,13 @@ resources/
   collectors.yml          the two cost collectors as on-demand jobs
   dashboard.yml           the Lakeview dashboard resource
 src/
-  sample_job.py           minimal, engine-agnostic pyspark workload
+  sample_job.py           minimal, engine-agnostic pyspark workload + in-job Photon coverage
   submit_dataproc.py      submit the file to Dataproc + label + per-job IAM (bench-runner)
-  collect_dbx.py          system tables (DBU) + BQ view (VM) → results
+  collect_dbx.py          system tables (DBU) + BQ view (VM) + Photon coverage → results
   collect_dataproc.py     Dataproc API (runtime) + BQ view (VM) → results
   bq_billing.py           shared: read VM cost per run_id from the scoped BQ view
 sql/
-  results_table.sql       schemas + the results & dataproc_runs (run-tracking) tables
+  results_table.sql       schemas + results, dataproc_runs & photon_coverage (tracking) tables
   grants.sql              least-privilege grants for the service principals
 dashboard/
   benchmark.lvdash.json   the Lakeview dashboard (Photon vs Spark vs Dataproc)

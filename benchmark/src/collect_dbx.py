@@ -6,7 +6,9 @@ Writes Databricks-run rows to analytics.benchmark.results, keyed by run_id:
   - runtime   from system.lakeflow.job_run_timeline (period_start/end) — accurate wall-clock.
   - VM   $    from the scoped BigQuery billing view, keyed by the run_id VM label
               (= the same job_run_id, injected via {{job.run_id}} custom_tag).
-Join on run_id -> per-run total cost + runtime, no time-windowing needed.
+  - Photon    coverage % + fallback operators from analytics.benchmark.photon_coverage
+     coverage (written per run by sample_job; Approach A — plan-based node ratio).
+Join on run_id -> per-run total cost + runtime + Photon coverage, no time-windowing needed.
 
 Illustrative: adapt the config, and install google-cloud-bigquery on the cluster
 (see resources/collectors.yml). Run AFTER billing export + label propagation settle.
@@ -24,6 +26,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--project-tag", default="dataproc-vs-photon")
     ap.add_argument("--results-table", default="analytics.benchmark.results")
+    ap.add_argument("--coverage-table", default="analytics.benchmark.photon_coverage")
     ap.add_argument("--bq-view", required=True, help="project.dataset.view of the scoped billing view")
     ap.add_argument("--secret-scope", default="benchmark")
     ap.add_argument("--secret-key", default="gcp_data_collector_key")
@@ -74,11 +77,22 @@ def main() -> None:
         [(k, float(v)) for k, v in vm.items()], schema="run_id string, gcp_vm_cost_usd double"
     )
 
-    # 4) Join, shape to the results schema, MERGE by (run_id, platform).
+    # 4) Photon coverage per run (Approach A), written by sample_job.
+    coverage = spark.sql(
+        f"""
+        SELECT run_id,
+               photon_coverage_pct,
+               fallback_ops AS photon_fallback_ops
+        FROM {args.coverage_table}
+        """
+    )
+
+    # 5) Join, shape to the results schema, MERGE by (run_id, platform).
     now = dt.datetime.utcnow()
     rows = (
         dbu.join(timing, "run_id", "left")
         .join(vm_sdf, "run_id", "left")
+        .join(coverage, "run_id", "left")
         .withColumn("platform", F.lit("databricks"))
         .withColumn("duration_s", F.col("run_end").cast("double") - F.col("run_start").cast("double"))
         .withColumn("gcp_vm_cost_usd", F.coalesce(F.col("gcp_vm_cost_usd"), F.lit(0.0)))

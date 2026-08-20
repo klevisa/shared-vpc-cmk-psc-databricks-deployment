@@ -4,7 +4,7 @@
 
 The benchmark run is just jobs + collectors, but the **cost** numbers and the run
 orchestration depend on a few GCP-side things and **five principals** existing first. These
-are one-time setups, mostly owned by the client's cloud/billing team.
+are one-time setups, mostly owned by the cloud/billing team.
 
 ## 1. A BigQuery billing export (standard *or* detailed)
 
@@ -17,7 +17,7 @@ only captures usage from the day it's enabled, so it must be on **before** the b
 3. **Either export works — we attribute by the `run_id` label, and both carry a `labels`
    array you can group by:**
    - **Standard usage cost** → `gcp_billing_export_v1_<BILLING_ACCOUNT_ID>` — **sufficient**,
-     and the lower-friction option if the client has to enable one (most orgs already run it).
+     and the lower-friction option.
    - **Detailed usage cost** → `gcp_billing_export_resource_v1_...` — also fine; it *only*
      adds per-VM identifiers (`resource.name`), which this PoC does **not** use.
    > The export is **billing-account-wide** — it can't be confined to labels or projects, so
@@ -59,7 +59,7 @@ WHERE service.description = 'Compute Engine'
 ```
 
 The `UNNEST(labels)` shape is identical for both exports, so the view (and the collectors)
-don't care which one the client has.
+don't care which one is enabled.
 
 The **data-collector SA** is granted read on **only this view** (plus `bigquery.jobUser` to
 run the query) — it never sees the rest of the billing export.
@@ -75,18 +75,19 @@ lives in the Databricks secret scope; the Databricks SP that needs it reads it v
 | `gcp-dataproc-runner` | `bench-runner` | `dataproc.jobs.create` on the client's cluster + `dataproc.jobs.setIamPolicy` (to grant the collector per-job) |
 | `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query + `dataproc.jobs.get` (granted per-job by the runner — §4) |
 
-Store both keys in the secret scope:
+Store each key in its **own scope** (one per SA):
 ```bash
-databricks secrets create-scope benchmark
-databricks secrets put-secret benchmark gcp_dataproc_runner_key --string-value "$(cat dataproc-runner-key.json)"
-databricks secrets put-secret benchmark gcp_data_collector_key  --string-value "$(cat data-collector-key.json)"
+databricks secrets create-scope benchmark_runner
+databricks secrets put-secret benchmark_runner   gcp_dataproc_runner_key --string-value "$(cat dataproc-runner-key.json)"
+databricks secrets create-scope benchmark_collector
+databricks secrets put-secret benchmark_collector gcp_data_collector_key  --string-value "$(cat data-collector-key.json)"
 ```
 
-> **Secret ACLs are per *scope*, not per secret.** If both `bench-runner` and
-> `bench-collector` hold READ on one scope, each can read *both* keys. For strict isolation
-> (runner can't read the collector's key, and vice versa), use **two scopes** — one per key —
-> and give each SP READ on only its own. The bundle's `secret_scope` variable points at one
-> scope by default; split it if the client requires the tighter boundary.
+> **Two scopes, one key each — deliberately.** Secret ACLs are per *scope*, not per secret, so
+> a single shared scope would let both SPs read *both* keys. Splitting into
+> `benchmark_runner` and `benchmark_collector` keeps `bench-runner` able to read only the
+> dataproc-runner key and `bench-collector` only the data-collector key. (Bundle vars
+> `runner_secret_scope` / `collector_secret_scope`.)
 
 ## 4. The Dataproc `jobs.get` role + per-job IAM (automated at submit)
 
@@ -105,8 +106,8 @@ separation of duties — people only *trigger* jobs (`CAN_MANAGE_RUN`) and *view
 
 | SP | Runs | Access |
 |---|---|---|
-| `bench-runner` | the workload jobs **and** the Dataproc submit | reads `customer_data_ro`, writes `analytics.workloads`; READ on the dataproc-runner key |
-| `bench-collector` | `collect_dbx` / `collect_dataproc` | writes `analytics.benchmark`, reads system tables; READ on the data-collector key |
+| `bench-runner` | the workload jobs **and** the Dataproc submit | reads `customer_data_ro`, writes `analytics.workloads`; READ on the `benchmark_runner` scope only |
+| `bench-collector` | `collect_dbx` / `collect_dataproc` | writes `analytics.benchmark`, reads system tables; READ on the `benchmark_collector` scope only |
 | `bench-analyst` | the dashboard | reads `analytics.benchmark` only |
 
 Steps (account admin, then catalog owner):
@@ -124,9 +125,8 @@ Steps (account admin, then catalog owner):
    ```
 4. **Run the grants** — as the `analytics` catalog owner, run [`sql/grants.sql`](sql/grants.sql)
    with each SP's application id substituted for `:runner` / `:collector` / `:analyst`.
-5. **Secret ACLs** — `bench-runner` READ on the dataproc-runner key, `bench-collector` READ
-   on the data-collector key (per scope — see the note in §3):
+5. **Secret ACLs** — each SP READ on **only its own** scope (§3):
    ```bash
-   databricks secrets put-acl benchmark <bench-runner-app-id>    READ
-   databricks secrets put-acl benchmark <bench-collector-app-id> READ
+   databricks secrets put-acl benchmark_runner    <bench-runner-app-id>    READ
+   databricks secrets put-acl benchmark_collector <bench-collector-app-id> READ
    ```

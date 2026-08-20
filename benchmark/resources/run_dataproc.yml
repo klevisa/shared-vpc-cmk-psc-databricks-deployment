@@ -28,7 +28,7 @@ resources:
               - "--project-tag=${var.project_tag}"
               - "--data-collector-sa=${var.data_collector_sa}"
               - "--jobs-get-role=${var.dataproc_jobs_get_role}"
-              - "--secret-scope=${var.secret_scope}"
+              - "--secret-scope=${var.runner_secret_scope}"
               - "--secret-key=${var.dataproc_runner_secret_key}"
           libraries:
             - pypi:

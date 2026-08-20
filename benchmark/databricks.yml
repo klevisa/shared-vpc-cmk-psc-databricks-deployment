@@ -42,13 +42,16 @@ variables:
     default: example-databricks-svc
   dataproc_region:
     default: us-central1
-  secret_scope:
-    default: benchmark
-  # Two GCP SA keys live in the secret scope; each Databricks SP reads only its own.
+  # Two secret scopes — one per GCP SA key — so each SP reads ONLY its own (secret ACLs are
+  # per scope, so a shared scope would let each SP read both keys).
+  runner_secret_scope:
+    default: benchmark_runner # holds the dataproc-runner key; bench-runner has READ
+  collector_secret_scope:
+    default: benchmark_collector # holds the data-collector key; bench-collector has READ
   dataproc_runner_secret_key:
-    default: gcp_dataproc_runner_key # read by bench-runner (submits Dataproc)
+    default: gcp_dataproc_runner_key # in runner_secret_scope; read by bench-runner
   data_collector_secret_key:
-    default: gcp_data_collector_key # read by bench-collector (runtimes + billing)
+    default: gcp_data_collector_key # in collector_secret_scope; read by bench-collector
 
   # --- Dataproc submit (orchestrated from Databricks by bench-runner; see src/submit_dataproc.py) ---
   dataproc_cluster:

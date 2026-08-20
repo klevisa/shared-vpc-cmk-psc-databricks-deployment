@@ -11,7 +11,7 @@ dashboard over it.
 This is the testing layer, packaged as a **Databricks Asset Bundle**:
 `databricks bundle deploy` pushes the jobs and dashboard; `databricks bundle run` executes them.
 
-> **Phase 5 — Benchmark Setup** (the BigQuery detailed billing export + scoped view, and the
+> **Phase 5 — Benchmark Setup** (the BigQuery billing export + scoped view, and the
 > service-principal creation) is prerequisite plumbing, documented in
 > **[prerequisites.md](prerequisites.md)**. Phases 6.1–6.2 below are the run and the measurement.
 

@@ -6,17 +6,23 @@ The benchmark run is just jobs + collectors, but the **cost** numbers and the ru
 orchestration depend on a few GCP-side things and **five principals** existing first. These
 are one-time setups, mostly owned by the client's cloud/billing team.
 
-## 1. Enable the BigQuery **detailed** billing export
+## 1. A BigQuery billing export (standard *or* detailed)
 
 GCP does not expose per-VM cost through an API — it exposes it by **exporting billing data
-to BigQuery**, which you must turn on (it is off by default, and **not retroactive** — it
-only captures usage from the day you enable it, so do this **before** the benchmark runs).
+to BigQuery**, which must be turned on (it is off by default, and **not retroactive** — it
+only captures usage from the day it's enabled, so it must be on **before** the benchmark runs).
 
-1. GCP console → **Billing → Billing export → BigQuery export**.
-2. Choose a **dataset** to receive the export (e.g. `billing_export`, in a project you control).
-3. Enable **Detailed usage cost** (the *resource-level* export). Required — the *standard*
-   export lacks the per-resource `labels`/`resource.name` needed to attribute cost to a VM.
-   This creates: `<billing-project>.<dataset>.gcp_billing_export_resource_v1_<BILLING_ACCOUNT_ID>`.
+1. GCP console → **Billing → Billing export → BigQuery export** (or confirm it's already on).
+2. Note the **dataset** the export lands in (e.g. `billing_export`).
+3. **Either export works — we attribute by the `run_id` label, and both carry a `labels`
+   array you can group by:**
+   - **Standard usage cost** → `gcp_billing_export_v1_<BILLING_ACCOUNT_ID>` — **sufficient**,
+     and the lower-friction option if the client has to enable one (most orgs already run it).
+   - **Detailed usage cost** → `gcp_billing_export_resource_v1_...` — also fine; it *only*
+     adds per-VM identifiers (`resource.name`), which this PoC does **not** use.
+   > The export is **billing-account-wide** — it can't be confined to labels or projects, so
+   > the whole account's cost lands in that dataset. That's why access is locked to the
+   > billing team and the data-collector SA only ever sees the scoped view (§2).
 4. Expect **latency**: rows land hours (up to ~a day) after usage — which is why the
    collectors are **run on demand after the runs settle**.
 
@@ -25,6 +31,11 @@ Cost attribution works because each engine's VMs carry our labels:
   GCE VM labels; `run_id` is injected via `{{job.run_id}}` (= `usage_metadata.job_run_id`).
 - **Dataproc** — the submit orchestration (`src/submit_dataproc.py`) labels each job
   `project`, `engine=dataproc`, `run_id=<dataproc job id>` (plus the auto `goog-dataproc-*`).
+
+> **Verify the labels land in the export** before relying on it — coverage can vary by
+> service: `SELECT * FROM <export>, UNNEST(labels) l WHERE l.key = 'run_id' LIMIT 10`. Labels
+> only attach usage from when they're applied forward. Standard rows are SKU-aggregated, which
+> is fine here because each run's cluster VMs share one `run_id`.
 
 ## 2. Create a **scoped authorized view** over the export
 
@@ -41,10 +52,14 @@ SELECT
   CASE WHEN (SELECT value FROM UNNEST(labels) WHERE key = 'engine') = 'dataproc'
        THEN 'dataproc' ELSE 'databricks' END               AS platform,
   cost
-FROM `billing-project.billing_export.gcp_billing_export_resource_v1_XXXXXX`
+-- standard export table; for the detailed export use gcp_billing_export_resource_v1_XXXXXX
+FROM `billing-project.billing_export.gcp_billing_export_v1_XXXXXX`
 WHERE service.description = 'Compute Engine'
   AND (SELECT value FROM UNNEST(labels) WHERE key = 'project') = 'dataproc-vs-photon';
 ```
+
+The `UNNEST(labels)` shape is identical for both exports, so the view (and the collectors)
+don't care which one the client has.
 
 The **data-collector SA** is granted read on **only this view** (plus `bigquery.jobUser` to
 run the query) — it never sees the rest of the billing export.

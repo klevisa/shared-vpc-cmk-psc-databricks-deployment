@@ -78,7 +78,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 
 | Step | Prereqs | Teams | Privileges | Output |
 |---|---|---|---|---|
-| **[5.1 BigQuery detailed billing export + view](benchmark/prerequisites.md)** | Workspace + data access complete; GCP billing export rights | GCP Billing + Security | **GCP:** billing admin + BigQuery admin | Detailed (resource-level) billing export; scoped authorized view; SP read on the view only |
+| **[5.1 BigQuery billing export + view](benchmark/prerequisites.md)** | Workspace + data access complete; GCP billing export rights | GCP Billing + Security | **GCP:** billing admin + BigQuery admin | Billing export (standard or detailed); scoped authorized view; SP read on the view only |
 | **[5.2 SP creation](benchmark/prerequisites.md)** | 5.1; workspace + catalogs | Databricks + GCP IAM admin | **Databricks:** account admin · **GCP:** IAM admin | 5 principals (GCP: dataproc-runner + data-collector SAs; Databricks: bench-runner, bench-collector, bench-analyst); GCP SA keys in the secret scope; run-as wired |
 
 ## 6. Benchmark

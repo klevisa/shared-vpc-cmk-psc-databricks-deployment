@@ -1,7 +1,7 @@
 # Databricks Photon PoC — Playbook
 
-The end-to-end plan for running the Databricks **Photon proof of concept** with the client on
-Google Cloud, as an ordered set of phases. Each step has a clear **owner**, the **privileges**
+The end-to-end plan for running the Databricks **Photon proof of concept** on your Google
+Cloud environment, as an ordered set of phases. Each step has a clear **owner**, the **privileges**
 it needs (GCP or Databricks), and the **output** it produces. This page is the map; every step
 links to its own guide for the detail.
 
@@ -59,7 +59,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 
 | Step | Prereqs | Teams | Privileges | Output |
 |---|---|---|---|---|
-| **[3.1 Connect to data lake (RO) + PoC bucket (RW)](data-access/README.md)** | Workspace setup complete | Data Platform + Network Security + bucket owners | **Databricks:** account admin (scoped UC CREATE grants) · **GCP:** bucket/storage IAM + VPC-SC admin | Read-only `customer_data_ro` catalog + read-write `analytics` catalog; storage credentials; per-bucket VPC-SC ingress (source-pinned) |
+| **[3.1 Connect to data lake (RO) + PoC bucket (RW)](data-access/README.md)** | Workspace setup complete | Data Platform + Network Security + bucket owners | **Databricks:** account admin (scoped UC CREATE grants) · **GCP:** bucket/storage IAM + VPC-SC admin | Read-only `source_data_ro` catalog + read-write `analytics` catalog; storage credentials; per-bucket VPC-SC ingress (source-pinned) |
 
 ## 4. Serverless Setup
 → [`serverless-setup/`](serverless-setup/README.md)
@@ -70,7 +70,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 | **[4.2 Firewall rules for serverless](serverless-setup/README.md)** | perimeter updated | Network Security + Data Platform | **Databricks:** account admin (egress policy) · **GCP:** firewall admin (host project) | Serverless egress network policy; Databricks serverless-compute outbound IPs allowlisted on the firewall |
 
 > **Phases 3 and 4 both touch the VPC-SC perimeter, and that's intentional.** They're kept as
-> separate steps so the client can reason about "data access" and "serverless" independently,
+> separate steps so you can reason about "data access" and "serverless" independently,
 > even though the perimeter changes could be combined into one for efficiency.
 
 ## 5. Benchmark Setup

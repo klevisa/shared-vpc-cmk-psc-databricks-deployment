@@ -15,7 +15,7 @@ capability here, not part of the measurement path.)
 
 > **Perimeter changes are split across Phases 3 and 4 on purpose.** Phase 3 adds the ingress
 > for data access; this phase adds what serverless needs. They could be one perimeter change
-> for efficiency, but they're kept separate so the client can reason about "data access" and
+> for efficiency, but they're kept separate so you can reason about "data access" and
 > "serverless" independently.
 
 ## 4.1 · Update VPC-SC perimeter
@@ -33,9 +33,9 @@ capability here, not part of the measurement path.)
 > [ip-domain-region → Outbound IPs for serverless compute (firewall)](https://docs.databricks.com/gcp/en/resources/ip-domain-region#outbound-ips-for-serverless-compute-firewall-preview).
 > **Unlike the source-pinning project numbers in 4.1 (which are stable), these IP ranges
 > rotate** — it's a preview feed with a timestamp. A one-time manual firewall entry **will
-> silently break** when the list changes. So the customer **must build automation** that
-> periodically fetches `ip-ranges.json`, diffs it, and updates the firewall allowlist. Treat
-> this as a required, customer-owned follow-up — not a one-time manual step.
+> silently break** when the list changes. So you'll need automation that periodically fetches
+> `ip-ranges.json`, diffs it, and updates the firewall allowlist. Plan for this as an ongoing
+> operational responsibility for your team — not a one-time manual step.
 
 > **How serverless reaches the data.** Serverless reads the catalogs through Unity Catalog,
 > as the storage-credential SA — and that data access is admitted by the **VPC-SC ingress

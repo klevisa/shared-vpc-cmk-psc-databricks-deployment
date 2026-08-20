@@ -15,10 +15,10 @@ workspace_url = "https://1234567890123456.7.gcp.databricks.com"
 
 # ---- GCP team identities (set to the same value if one team owns several) ----
 perimeter_sa        = "vpcsc-admin@example-security.iam.gserviceaccount.com"            # Cloud/Network Security
-data_bucket_sa      = "data-bucket-admin@example-customer-data.iam.gserviceaccount.com" # owner of the source bucket
+data_bucket_sa      = "data-bucket-admin@example-source-data.iam.gserviceaccount.com" # owner of the source bucket
 analytics_bucket_sa = "storage-admin@example-databricks-svc.iam.gserviceaccount.com"    # Data Platform
 
-# ---- VPC-SC (customer-supplied perimeter) ----
+# ---- VPC-SC (your existing perimeter) ----
 perimeter_name      = "accessPolicies/123456789012/servicePerimeters/example_perimeter"
 protected_resources = ["*"] # or ["projects/222222222222"] to scope to the buckets' project
 
@@ -31,10 +31,10 @@ databricks_source_projects = [
   "projects/000000000002", # Databricks serverless-compute project (your region)
 ]
 
-# ---- Read-only catalog (the customer's EXISTING data bucket) ----
-readonly_bucket                  = "example-customer-data"
-readonly_bucket_project          = "example-customer-data"
-readonly_catalog_name            = "customer_data_ro"
+# ---- Read-only catalog (your EXISTING data bucket) ----
+readonly_bucket                  = "example-source-data"
+readonly_bucket_project          = "example-source-data"
+readonly_catalog_name            = "source_data_ro"
 readonly_schema_name             = "raw"
 readonly_storage_credential_name = "cust_data_ro_cred"
 readonly_external_location_name  = "cust_data_ro_loc"

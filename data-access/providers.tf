@@ -13,7 +13,7 @@
 #
 # GCP — three identities (map to whichever Yahoo teams own each):
 #   perimeter   : Cloud/Network Security — adds the VPC-SC ingress rules.
-#   data_bucket     : owner of the customer's existing data bucket — grants read-only IAM.
+#   data_bucket     : owner of your existing data bucket — grants read-only IAM.
 #   analytics_bucket: Data Platform — creates the analytics data bucket + grants read-write IAM.
 #
 # NOTE: Unity Catalog objects are created against the WORKSPACE API. If the workspace is

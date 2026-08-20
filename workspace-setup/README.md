@@ -26,7 +26,7 @@ Each step below links to its config's README for the full inputs, outputs, and c
 | **2.4 · Create the workspace** | [`workspace/`](workspace/README.md) — VPC-endpoint regs, private access settings, network config, CMEK registration, workspace, metastore assignment | **Data / Databricks Platform** | Databricks **account admin** — no GCP project roles (this step only calls the account API) |
 | **2.5 · Post-workspace config** | [`post-workspace/`](post-workspace/README.md) — workspace-SA `networkUser` subnet grant + DNS **records** (4 A-records) | **Network Engineering / Cloud IAM** | `compute.networkAdmin` + `dns.admin` on **HOST** |
 
-> Customer identities and groups arrive earlier, in **Phase 1.2 (IdP Sync)** — they're
+> Your identities and groups arrive earlier, in **Phase 1.2 (IdP Sync)** — they're
 > already in the account by the time you reach here. Assigning a synced group as workspace
 > `ADMIN` is a one-line account-API step the Data Platform team can do any time after 2.4
 > (until then, the account admin from Phase 1 is already a full workspace admin).

@@ -2,27 +2,27 @@
 
 > ← Back to the [PoC playbook](../README.md)
 
-**Purpose:** give the workspace governed access to data — a **read-only** catalog over the
-client's existing bucket and a **read-write** `analytics` catalog on a new bucket — each
+**Purpose:** give the workspace governed access to data — a **read-only** catalog over your
+existing bucket and a **read-write** `analytics` catalog on a new bucket — each
 guarded by its own **VPC Service Controls ingress rule** on the perimeter.
 **Owner:** Data Platform, with Cloud/Network Security (perimeter ingress) and the bucket
 owners (read-only IAM).
-**Produces:** the `customer_data_ro` and `analytics` catalogs, plus their ingress rules.
+**Produces:** the `source_data_ro` and `analytics` catalogs, plus their ingress rules.
 
-Two Unity Catalog catalogs over GCS: read the client's existing data without touching it, and
+Two Unity Catalog catalogs over GCS: read your existing data without modifying it, and
 write results to a managed `analytics` catalog on a bucket created here.
 
 > **Perimeter changes are split across Phases 3 and 4 on purpose.** This phase adds the
 > ingress rules for **data access**; Phase 4 adds the ones for **serverless**. They could be
-> combined into a single perimeter change for efficiency, but they're kept separate so the
-> client can reason about "data access" and "serverless" independently.
+> combined into a single perimeter change for efficiency, but they're kept separate so you
+> can reason about "data access" and "serverless" independently.
 
 ## What it does
 
 **Automation privileges (scoped, least-privilege):**
 - the Databricks account admin grants the **catalog automation SP** exactly `CREATE_CATALOG` / `CREATE_EXTERNAL_LOCATION` / `CREATE_STORAGE_CREDENTIAL` on the metastore — **not** metastore admin
 
-**Read-only catalog** — over the customer's **existing data bucket**
+**Read-only catalog** — over your **existing data bucket**
 - storage credential (generates a Databricks SA) → read-only bucket IAM (`objectViewer` + `legacyBucketReader`) → VPC-SC ingress (read methods) → **read-only** external location → catalog + schema (**namespace only** — external tables registered here later)
 
 **Read-write (managed) catalog** — over the **analytics data bucket (created here)**
@@ -35,7 +35,7 @@ The automation SP **owns** the catalogs it creates. The metastore *admin* is sep
 - **Workspace setup complete** (`workspace-setup/`); you have the workspace URL and the region's `metastore_id`.
 - **Metastore admin is set up** (prereq, see [`../databricks-account-setup/README.md`](../databricks-account-setup/README.md)): the metastore's **owner** is an IdP-synced human governance group.
 - **The catalog automation SP exists**: the account admin has **manually created** a Databricks **service principal** and generated its **OAuth M2M secret** (application id + client secret) so it can authenticate to the workspace API. This is a one-time manual step done as part of setting up this phase.
-- The customer's **data bucket exists**; a **VPC-SC perimeter exists** (customer-supplied) you can attach ingress to.
+- Your **data bucket exists**, and a **VPC-SC perimeter exists** (one you supply) you can attach ingress to.
 
 > Unity Catalog objects are created against the **workspace API**. For a private (`public_access_enabled = false`) workspace, run this from somewhere that can reach the workspace endpoint (inside or peered to the VPC).
 
@@ -72,8 +72,8 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 **📋 Given / lookups** — facts you look up, not free choices:
 
-- `readonly_bucket` / `readonly_bucket_project` : the customer's **existing** data bucket + its project
-- `perimeter_name` : the customer's VPC-SC perimeter — `accessPolicies/<policy>/servicePerimeters/<name>`
+- `readonly_bucket` / `readonly_bucket_project` : your **existing** data bucket + its project
+- `perimeter_name` : your VPC-SC perimeter — `accessPolicies/<policy>/servicePerimeters/<name>`
 - `protected_resources` : the perimeter-protected project(s) the buckets live in
 - `databricks_source_projects` : **required** — Databricks control-plane + serverless-compute **project numbers** that source-pin the ingress (covers both the storage-credential SA and serverless compute); look them up in the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region).
 
@@ -99,6 +99,6 @@ Each catalog resolves the same **dependency ordering** in one apply: create the 
 
 The **read-only** catalog is a pure namespace (no `storage_root`); external tables get registered under it later, pointing into the read-only external location, with viewer-only IAM making writes impossible. The **read-write** catalog gets a `storage_root` on the analytics data bucket, so managed tables land there and `DROP` cleans them up. Read-only is enforced three ways: viewer-only IAM, the external-location `read_only` flag, and read-scoped VPC-SC ingress.
 
-**Source-pinning the ingress (both catalogs).** The VPC-SC ingress admits the generated storage-credential SA **only** when the call originates from Databricks' own projects — set `databricks_source_projects` to Databricks' **control-plane and serverless-compute** project numbers for your region. Including both covers both paths: the storage-credential SA (classic / Unity Catalog operations) and **serverless** compute, which runs in Databricks-owned projects rather than your VPC. Look them up in the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region). These are **stable** values Databricks publishes specifically so perimeters can pin to them: an existing project number is never changed out from under a pinned perimeter — that would break every customer who pinned it — so the only change you'd ever see is a **new** number being *added* and announced, which you then reconcile into the list (otherwise traffic from that new project is denied). This is distinct from **firewall** allowlisting, which uses IP ranges (those *do* rotate — see the TODO in `network/network.tf`).
+**Source-pinning the ingress (both catalogs).** The VPC-SC ingress admits the generated storage-credential SA **only** when the call originates from Databricks' own projects — set `databricks_source_projects` to Databricks' **control-plane and serverless-compute** project numbers for your region. Including both covers both paths: the storage-credential SA (classic / Unity Catalog operations) and **serverless** compute, which runs in Databricks-owned projects rather than your VPC. Look them up in the [ip-domain-region table](https://docs.databricks.com/gcp/en/resources/ip-domain-region). These are **stable** values Databricks publishes specifically so perimeters can pin to them: an existing project number is never changed out from under a pinned perimeter — that would break every perimeter pinned to it — so the only change you'd ever see is a **new** number being *added* and announced, which you then reconcile into the list (otherwise traffic from that new project is denied). This is distinct from **firewall** allowlisting, which uses IP ranges (those *do* rotate — see the TODO in `network/network.tf`).
 
 Two caveats: (1) the scoped `CREATE_*` grant must propagate before the automation SA can create catalogs — `depends_on` orders it, but a fresh grant may occasionally need a second apply. (2) The VPC-SC `method_selectors` (`google.storage.objects.get`/`list`) follow the supported-methods reference; if a legitimate read is blocked, widen to `"*"` (write protection still holds via IAM + the read-only external location).

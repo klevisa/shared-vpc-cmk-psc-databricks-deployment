@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# READ-ONLY catalog over the customer's EXISTING data bucket.
+# READ-ONLY catalog over your EXISTING data bucket.
 # credential (uc_admin) -> read-only bucket IAM (data_bucket team) + VPC-SC ingress
 # scoped to read methods (perimeter team) -> read-only external location -> catalog +
 # schema (namespace only; external tables registered here later).
@@ -77,7 +77,7 @@ resource "databricks_external_location" "ro" {
 resource "databricks_catalog" "ro" {
   provider = databricks.uc_admin
   name     = var.readonly_catalog_name
-  comment  = "Read-only catalog over the customer data bucket; external tables added later"
+  comment  = "Read-only catalog over your data bucket; external tables added later"
 }
 
 resource "databricks_schema" "ro" {

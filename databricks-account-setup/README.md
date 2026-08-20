@@ -71,7 +71,7 @@ the region's metastore to exist and its id.
 
 ## 1.2 · IdP Sync
 
-Get your customer identities and groups into the Databricks account so they're available for the
+Get your identities and groups into the Databricks account so they're available for the
 metastore-owner group, the delegated workspace admin, and the data/benchmark grants.
 
 1. Configure **SCIM** provisioning in your IdP (Okta/Entra) so **users and groups** sync into
@@ -81,7 +81,7 @@ metastore-owner group, the delegated workspace admin, and the data/benchmark gra
    UC grants) — don't manage the synced objects as Terraform resources.
 
 **Owner:** Databricks account admin (enable SCIM, issue the token) + IdP admin (configure the
-provisioning app). **Produces:** customer identities and groups in the Databricks account.
+provisioning app). **Produces:** your identities and groups in the Databricks account.
 
 There's no bootstrap risk: until SCIM is live, the human account admin from 1.1 is already a
 full workspace admin.

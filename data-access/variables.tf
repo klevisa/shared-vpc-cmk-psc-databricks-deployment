@@ -31,14 +31,14 @@ variable "perimeter_sa" {
 }
 variable "data_bucket_sa" {
   type        = string
-  description = "SA owning the customer's data bucket project (impersonated). Needs bucket IAM admin on the existing data bucket."
+  description = "SA owning your data bucket project (impersonated). Needs bucket IAM admin on the existing data bucket."
 }
 variable "analytics_bucket_sa" {
   type        = string
   description = "Data Platform SA (impersonated). Needs roles/storage.admin in the analytics bucket's project (creates the bucket + grants IAM)."
 }
 
-# ---- VPC-SC (customer-supplied perimeter) ----
+# ---- VPC-SC (your existing perimeter) ----
 variable "perimeter_name" {
   type        = string
   description = "Full service-perimeter name: accessPolicies/<policy>/servicePerimeters/<name>."
@@ -57,7 +57,7 @@ variable "databricks_source_projects" {
   # compute (which runs in Databricks-owned projects). Look them up in the "IP addresses and
   # domains" table: https://docs.databricks.com/gcp/en/resources/ip-domain-region
   # These are STABLE values Databricks publishes for exactly this purpose — an existing number
-  # is never changed out from under a pinned perimeter (that would break every pinned customer).
+  # is never changed out from under a pinned perimeter (that would break every pinned perimeter).
   # New numbers are only ever ADDED and announced; reconcile the list if that happens, or new
   # traffic from an unlisted project is denied. Format: ["projects/<number>", ...].
   validation {
@@ -67,10 +67,10 @@ variable "databricks_source_projects" {
   description = "REQUIRED. Databricks control-plane + serverless-compute project numbers that source-pin the VPC-SC ingress. See the ip-domain-region docs."
 }
 
-# ---- Read-only catalog (the customer's EXISTING data bucket) ----
+# ---- Read-only catalog (your EXISTING data bucket) ----
 variable "readonly_bucket" {
   type        = string
-  description = "EXISTING GCS bucket with the customer's data (name only). Accessed read-only."
+  description = "EXISTING GCS bucket with your data (name only). Accessed read-only."
 }
 variable "readonly_bucket_project" {
   type        = string

@@ -18,8 +18,8 @@
 -- ---- bench-runner: read the source data, write job outputs ----
 GRANT USE CATALOG ON CATALOG analytics TO `:runner`;
 GRANT USE SCHEMA, CREATE, MODIFY, SELECT ON SCHEMA analytics.workloads TO `:runner`;
-GRANT USE CATALOG ON CATALOG customer_data_ro TO `:runner`;
-GRANT USE SCHEMA, SELECT ON SCHEMA customer_data_ro.raw TO `:runner`;
+GRANT USE CATALOG ON CATALOG source_data_ro TO `:runner`;
+GRANT USE SCHEMA, SELECT ON SCHEMA source_data_ro.raw TO `:runner`;
 -- record submitted Dataproc runs — the runner only APPENDS here. UC has no INSERT-only
 -- privilege, so MODIFY (its single write privilege) is the tightest grant; no SELECT (the
 -- runner never reads it). TABLE-level, so it can't touch the results table or the rest of

@@ -83,7 +83,7 @@ secret scope.
 |---|---|---|---|
 | `gcp-dataproc-runner` | GCP SA | create the ephemeral cluster + submit the job (from a Databricks job) | project-level: `dataproc.clusters.create`/`delete` + `dataproc.jobs.create` + `dataproc.jobs.setIamPolicy`; plus `actAs` on the cluster VM SA |
 | `gcp-data-collector` | GCP SA | Dataproc runtimes + BigQuery costs | `dataproc.jobs.get` (per-job) + BigQuery view read |
-| `bench-runner` | Databricks SP | runs the Photon/Spark jobs + submits Dataproc | read `customer_data_ro`, write `analytics.workloads`; reads only the `benchmark_runner` scope |
+| `bench-runner` | Databricks SP | runs the Photon/Spark jobs + submits Dataproc | read `source_data_ro`, write `analytics.workloads`; reads only the `benchmark_runner` scope |
 | `bench-collector` | Databricks SP | materializes the results table | write `analytics.benchmark`, read system tables; reads only the `benchmark_collector` scope |
 | `bench-analyst` | Databricks SP | builds the dashboard | read `analytics.benchmark` only |
 

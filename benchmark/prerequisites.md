@@ -14,7 +14,7 @@ only captures usage from the day it's enabled, so it must be on **before** the b
 
 1. GCP console → **Billing → Billing export → BigQuery export** (or confirm it's already on).
 2. Note the **dataset** the export lands in (e.g. `billing_export`).
-3. **Either export works — we attribute by the `run_id` label, and both carry a `labels`
+3. **Either export works — attribution is by the `run_id` label, and both carry a `labels`
    array you can group by:**
    - **Standard usage cost** → `gcp_billing_export_v1_<BILLING_ACCOUNT_ID>` — **sufficient**,
      and the lower-friction option.
@@ -26,7 +26,7 @@ only captures usage from the day it's enabled, so it must be on **before** the b
 4. Expect **latency**: rows land hours (up to ~a day) after usage — which is why the
    collectors are **run on demand after the runs settle**.
 
-Cost attribution works because each engine's VMs carry our labels:
+Cost attribution works because each engine's VMs carry the run labels:
 - **Databricks** — the cluster `custom_tags` (`project`, `engine`, `run_id`) propagate to the
   GCE VM labels; `run_id` is injected via `{{job.run_id}}` (= `usage_metadata.job_run_id`).
 - **Dataproc** — the submit orchestration (`src/submit_dataproc.py`) labels each job
@@ -102,7 +102,7 @@ databricks secrets put-secret benchmark_collector gcp_data_collector_key  --stri
   3. grants the **data-collector SA** the `jobs.get` role on **that job only** (per-job IAM).
 - These are project-scoped Dataproc permissions (create/delete cluster, submit job, set job
   IAM; see §3) — not cluster-scoped, and Dataproc jobs can't be IAM-conditioned by region — so a
-  **dedicated PoC Dataproc project** is the tightest boundary. The client grants them.
+  **dedicated PoC Dataproc project** is the tightest boundary. You grant these to the runner SA.
 - **No manual steps** — cluster create, submit, per-job IAM, and run recording all happen in
   the job; the cluster auto-deletes when idle.
 
@@ -113,7 +113,7 @@ separation of duties — people only *trigger* jobs (`CAN_MANAGE_RUN`) and *view
 
 | SP | Runs | Access |
 |---|---|---|
-| `bench-runner` | the workload jobs **and** the Dataproc submit | reads `customer_data_ro`, writes `analytics.workloads`; READ on the `benchmark_runner` scope only |
+| `bench-runner` | the workload jobs **and** the Dataproc submit | reads `source_data_ro`, writes `analytics.workloads`; READ on the `benchmark_runner` scope only |
 | `bench-collector` | `collect_dbx` / `collect_dataproc` | writes `analytics.benchmark`, reads system tables; READ on the `benchmark_collector` scope only |
 | `bench-analyst` | the dashboard | reads `analytics.benchmark` only |
 

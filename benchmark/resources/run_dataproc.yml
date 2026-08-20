@@ -22,7 +22,11 @@ resources:
             parameters:
               - "--gcp-project=${var.gcp_project}"
               - "--dataproc-region=${var.dataproc_region}"
-              - "--cluster=${var.dataproc_cluster}"
+              # matched to the Databricks job clusters for a fair comparison
+              - "--master-machine-type=${var.driver_node_type_id}"
+              - "--worker-machine-type=${var.node_type_id}"
+              - "--num-workers=${var.num_workers}"
+              - "--idle-delete-ttl-seconds=${var.dataproc_idle_delete_ttl_seconds}"
               - "--pyspark-uri=${var.dataproc_pyspark_uri}"
               - "--job-name=sample_job"
               - "--project-tag=${var.project_tag}"

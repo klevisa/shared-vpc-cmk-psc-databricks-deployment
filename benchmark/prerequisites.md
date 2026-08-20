@@ -72,7 +72,7 @@ lives in the Databricks secret scope; the Databricks SP that needs it reads it v
 
 | GCP SA | Read by | GCP access |
 |---|---|---|
-| `gcp-dataproc-runner` | `bench-runner` | `dataproc.jobs.create` + `dataproc.jobs.setIamPolicy` at the **project level** in the Dataproc project (to submit jobs + grant the collector per-job `dataproc.jobs.get` privileges) |
+| `gcp-dataproc-runner` | `bench-runner` | **project-level** in the Dataproc project: `dataproc.clusters.create` + `dataproc.clusters.delete` (ephemeral per-run cluster) + `dataproc.jobs.create` + `dataproc.jobs.setIamPolicy`; plus `iam.serviceAccounts.actAs` on the cluster's VM service account |
 | `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query + `dataproc.jobs.get` (granted per-job by the runner — §4) |
 
 Store each key in its **own scope** (one per SA):
@@ -89,18 +89,22 @@ databricks secrets put-secret benchmark_collector gcp_data_collector_key  --stri
 > dataproc-runner key and `bench-collector` only the data-collector key. (Bundle vars
 > `runner_secret_scope` / `collector_secret_scope`.)
 
-## 4. The Dataproc `jobs.get` role + per-job IAM (automated at submit)
+## 4. Ephemeral cluster + the Dataproc `jobs.get` role (automated at submit)
 
 - Create a **custom role** with just `dataproc.jobs.get` (the bundle's `dataproc_jobs_get_role`).
-- You do **not** grant it broadly. The submit orchestration (`src/submit_dataproc.py`, run as
-  `bench-runner` via the dataproc-runner SA) grants the **data-collector SA** that role on
-  **each job it submits** — per-job IAM, in code — so the collector reads only the benchmark
-  jobs' runtimes. This needs the dataproc-runner SA to hold `dataproc.jobs.create` and
-  `dataproc.jobs.setIamPolicy` **at the project level** in the client's Dataproc project (these
-  are project-scoped Dataproc permissions, not cluster-scoped — Dataproc jobs can't be
-  IAM-conditioned by region/cluster, so a dedicated PoC Dataproc project is the tightest
-  boundary); the client grants those.
-- There is **no manual per-job step** — it's part of the submit.
+- The submit orchestration (`src/submit_dataproc.py`, run as `bench-runner` via the
+  dataproc-runner SA) does everything per run:
+  1. **creates an ephemeral Dataproc cluster** labeled `project`/`engine=dataproc`/`run_id`,
+     hardware matched to the Databricks job clusters, auto-deleted after idle. Putting `run_id`
+     on the **cluster** is what lands it on the VM billing rows — Dataproc *job* labels don't
+     reach the VMs — so per-run VM cost is attributable and concurrency-proof;
+  2. submits the file to it (job id = `run_id`);
+  3. grants the **data-collector SA** the `jobs.get` role on **that job only** (per-job IAM).
+- These are project-scoped Dataproc permissions (create/delete cluster, submit job, set job
+  IAM; see §3) — not cluster-scoped, and Dataproc jobs can't be IAM-conditioned by region — so a
+  **dedicated PoC Dataproc project** is the tightest boundary. The client grants them.
+- **No manual steps** — cluster create, submit, per-job IAM, and run recording all happen in
+  the job; the cluster auto-deletes when idle.
 
 ## 5. Databricks service principals (runner / collector / analyst)
 

@@ -56,8 +56,11 @@ variables:
     default: gcp_data_collector_key # in collector_secret_scope; read by bench-collector
 
   # --- Dataproc submit (orchestrated from Databricks by bench-runner; see src/submit_dataproc.py) ---
-  dataproc_cluster:
-    default: example-dataproc-cluster # the client's existing Dataproc cluster
+  # submit_dataproc creates an EPHEMERAL cluster per run (hardware matched via the compute
+  # vars above: driver_node_type_id / node_type_id / num_workers), labeled with run_id, and
+  # auto-deleted after this many idle seconds.
+  dataproc_idle_delete_ttl_seconds:
+    default: 600
   dataproc_pyspark_uri:
     default: gs://example-analytics-data/benchmark/sample_job.py # the same file, staged on GCS for Dataproc
   data_collector_sa:

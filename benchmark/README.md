@@ -30,18 +30,19 @@ bundle variables), so the engine is the only variable, matched to the Dataproc c
 
 ### The Dataproc run — orchestrated from Databricks
 
-`bundle run run_dataproc` (run as **`bench-runner`**) submits the same PySpark file to the
-client's Dataproc cluster via the **`gcp-dataproc-runner`** SA key from the secret scope. One
-step (`src/submit_dataproc.py`) does everything the cost join needs:
+`bundle run run_dataproc` (run as **`bench-runner`**, via the **`gcp-dataproc-runner`** SA key)
+runs `src/submit_dataproc.py`, which per run:
 
-- **labels** the job `project` / `engine=dataproc` / `run_id=<dataproc job id>` so its VM cost
-  is attributable in the billing view;
+- **creates an ephemeral Dataproc cluster** — hardware matched to the Databricks job clusters
+  (same machine types + worker count), labeled `project`/`engine=dataproc`/`run_id`, and
+  auto-deleted on idle. The `run_id` on the **cluster** is what lands it on the VM billing rows
+  (Dataproc *job* labels don't reach the VMs), so per-run VM cost is attributable;
+- **submits** the same PySpark file to it (job id = `run_id`);
 - **grants** the `gcp-data-collector` SA `dataproc.jobs.get` on that job only (per-job IAM);
 - **records the `run_id`** in `analytics.benchmark.dataproc_runs`, so `collect_dataproc` picks it up automatically — no ids to copy by hand.
 
-Match the Dataproc cluster hardware to the Databricks clusters for a fair comparison. The
-submit is a call to `dataproc.googleapis.com`, reachable from classic Databricks compute over
-Private Google Access (no public egress needed).
+The submit is a call to `dataproc.googleapis.com`, reachable from classic Databricks compute
+over Private Google Access (no public egress needed).
 
 ## 6.2 · Measure & monitor
 
@@ -138,7 +139,10 @@ databricks bundle run collect_dataproc
 
 - **Example values — replace before applying** (bundle variables and the identifiers in
   `prerequisites.md`).
-- **Run the engines one at a time** on a given file so each run's window is clean (this matters
-  only for the GCP VM-cost half; the DBU half is keyed by `job_run_id` regardless).
+- **Attribution is concurrency-proof:** DBU is keyed by `job_run_id`, and every VM (each
+  Databricks job cluster and each ephemeral Dataproc cluster) carries the `run_id` label.
+  Running engines **one at a time** is still recommended for *runtime* hygiene — concurrent
+  runs can contend for shared GCS bandwidth / quota and skew wall-clock — but it's no longer
+  required for clean cost attribution.
 - The collectors need `google-cloud-bigquery` / `google-cloud-dataproc`, declared as job
   libraries in `resources/collectors.yml`.

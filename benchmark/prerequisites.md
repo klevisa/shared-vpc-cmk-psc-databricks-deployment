@@ -72,7 +72,7 @@ lives in the Databricks secret scope; the Databricks SP that needs it reads it v
 
 | GCP SA | Read by | GCP access |
 |---|---|---|
-| `gcp-dataproc-runner` | `bench-runner` | `dataproc.jobs.create` on the client's cluster + `dataproc.jobs.setIamPolicy` (to grant the collector per-job) |
+| `gcp-dataproc-runner` | `bench-runner` | `dataproc.jobs.create` + `dataproc.jobs.setIamPolicy` at the **project level** in the client's Dataproc project (to submit jobs + grant the collector per-job) |
 | `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query + `dataproc.jobs.get` (granted per-job by the runner — §4) |
 
 Store each key in its **own scope** (one per SA):
@@ -96,7 +96,10 @@ databricks secrets put-secret benchmark_collector gcp_data_collector_key  --stri
   `bench-runner` via the dataproc-runner SA) grants the **data-collector SA** that role on
   **each job it submits** — per-job IAM, in code — so the collector reads only the benchmark
   jobs' runtimes. This needs the dataproc-runner SA to hold `dataproc.jobs.create` and
-  `dataproc.jobs.setIamPolicy` on the client's cluster; the client grants those.
+  `dataproc.jobs.setIamPolicy` **at the project level** in the client's Dataproc project (these
+  are project-scoped Dataproc permissions, not cluster-scoped — Dataproc jobs can't be
+  IAM-conditioned by region/cluster, so a dedicated PoC Dataproc project is the tightest
+  boundary); the client grants those.
 - There is **no manual per-job step** — it's part of the submit.
 
 ## 5. Databricks service principals (runner / collector / analyst)

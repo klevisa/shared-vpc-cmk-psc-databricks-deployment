@@ -40,7 +40,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 
 | Step | Prereqs | Teams | Privileges | Output |
 |---|---|---|---|---|
-| **1.1 Databricks Account Setup** | None | Databricks + GCP Billing Admin | None | Account, human + automation (`databricks_account_admin_sa`) admins, regional metastore |
+| **1.1 Databricks Account Setup** | None | Databricks + GCP Billing Admin | None | Account, human + automation (`databricks_account_admin_sa`) admins, regional metastore, system-table schemas enabled |
 | **1.2 IdP Sync** | 1.1 | Databricks + IdP Admin | **Databricks:** account admin · **IdP:** SCIM admin | Identities/groups synced; metastore owner set to a governance group |
 
 ## 2. Workspace Setup

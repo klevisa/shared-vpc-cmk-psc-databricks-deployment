@@ -51,6 +51,18 @@ may be pre-created and shared region-wide); step 2.4 explicitly assigns the work
 - **Leave the metastore owner for after IdP sync (1.2).** The owner should be an IdP-synced
   human governance **group**, and no groups exist in the account yet — so the metastore just
   needs to *exist* here; its owner is set at the end of 1.2.
+- **Enable the system-table schemas** on the metastore (account/metastore admin) — the
+  production baseline for cost, governance, and ops. `billing` is on by default; enable:
+  ```bash
+  for s in access lakeflow compute query data_classification tags storage; do
+    databricks system-schemas enable <metastore-id> "$s"
+  done
+  ```
+  Enabling only makes the tables *exist*; access is granted **separately** (`USE CATALOG` on
+  `system` + `USE SCHEMA` + `SELECT` per schema) and should be **gated** — they hold sensitive
+  operational/audit data. (What each schema is for: `access` = audit + lineage, `lakeflow` =
+  job/pipeline runs, `compute` = clusters/warehouses, `query` = SQL history,
+  `data_classification` = PII scan results, `tags` = governed tags, `storage` = storage ops.)
 
 Catalogs and their storage are set up later, in **Phase 3 (Data Access)** — here you only need
 the region's metastore to exist and its id.

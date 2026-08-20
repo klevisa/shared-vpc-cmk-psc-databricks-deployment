@@ -25,11 +25,12 @@ GRANT USE SCHEMA, SELECT ON SCHEMA customer_data_ro.raw TO `:runner`;
 -- ---- bench-collector: write the results table, read the system tables ----
 GRANT USE CATALOG ON CATALOG analytics TO `:collector`;
 GRANT USE SCHEMA, CREATE, MODIFY, SELECT ON SCHEMA analytics.benchmark TO `:collector`;
+-- Least privilege: the collector only needs billing (DBU + prices) and lakeflow (run times).
+-- The other production system schemas (access/compute/query/data_classification/tags/storage)
+-- are enabled at the metastore but their access is a separate, governance-owned concern.
 GRANT USE CATALOG ON CATALOG system TO `:collector`;
-GRANT USE SCHEMA, SELECT ON SCHEMA system.billing TO `:collector`;
-GRANT USE SCHEMA, SELECT ON SCHEMA system.compute TO `:collector`;
-GRANT USE SCHEMA, SELECT ON SCHEMA system.query   TO `:collector`;
-GRANT USE SCHEMA, SELECT ON SCHEMA system.access  TO `:collector`;
+GRANT USE SCHEMA, SELECT ON SCHEMA system.billing  TO `:collector`;
+GRANT USE SCHEMA, SELECT ON SCHEMA system.lakeflow TO `:collector`;
 
 -- ---- bench-analyst: read the results only (for dashboards) ----
 GRANT USE CATALOG ON CATALOG analytics TO `:analyst`;

@@ -1,11 +1,12 @@
 """Databricks-side cost collector (unscheduled — run on demand after runs settle).
 
-Combines the two Databricks-run cost halves and writes them to analytics.benchmark.results:
-  - DBU + $  from system tables, keyed by usage_metadata.job_run_id (populated for JOB
-             compute), joined to system.billing.list_prices for USD.
-  - VM   $   from the scoped BigQuery billing view, keyed by the run_id VM label
-             (= the same job_run_id, injected via {{job.run_id}} custom_tag).
-Join on run_id -> per-run total cost, no time-windowing needed.
+Writes Databricks-run rows to analytics.benchmark.results, keyed by run_id:
+  - DBU + $   from system.billing.usage (job_run_id populated for JOB compute), joined to
+              system.billing.list_prices for USD.
+  - runtime   from system.lakeflow.job_run_timeline (period_start/end) — accurate wall-clock.
+  - VM   $    from the scoped BigQuery billing view, keyed by the run_id VM label
+              (= the same job_run_id, injected via {{job.run_id}} custom_tag).
+Join on run_id -> per-run total cost + runtime, no time-windowing needed.
 
 Illustrative: adapt the config, and install google-cloud-bigquery on the cluster
 (see resources/collectors.yml). Run AFTER billing export + label propagation settle.
@@ -33,17 +34,15 @@ def main() -> None:
 
     dbutils = DBUtils(spark)
 
-    # 1) DBU cost per run from system tables (job_run_id is populated for job compute).
+    # 1) DBU + $ per run from system.billing (job_run_id is populated for job compute).
     dbu = spark.sql(
         f"""
         SELECT
-          u.usage_metadata.job_run_id                         AS run_id,
-          MAX(u.usage_metadata.job_name)                      AS job_name,
-          MAX(u.custom_tags['engine'])                        AS engine,
-          SUM(u.usage_quantity)                               AS dbu,
-          SUM(u.usage_quantity * CAST(p.pricing.default AS DOUBLE)) AS dbu_cost_usd,
-          MIN(u.usage_start_time)                             AS run_start,
-          MAX(u.usage_end_time)                               AS run_end
+          u.usage_metadata.job_run_id                              AS run_id,
+          MAX(u.usage_metadata.job_name)                           AS job_name,
+          MAX(u.custom_tags['engine'])                             AS engine,
+          SUM(u.usage_quantity)                                    AS dbu,
+          SUM(u.usage_quantity * CAST(p.pricing.default AS DOUBLE)) AS dbu_cost_usd
         FROM system.billing.usage u
         LEFT JOIN system.billing.list_prices p
           ON  u.sku_name = p.sku_name AND u.cloud = p.cloud
@@ -56,17 +55,30 @@ def main() -> None:
         """
     )
 
-    # 2) VM cost per run from the scoped BigQuery billing view.
+    # 2) Accurate wall-clock per run from system.lakeflow.job_run_timeline.
+    timing = spark.sql(
+        """
+        SELECT run_id,
+               MIN(period_start_time) AS run_start,
+               MAX(period_end_time)   AS run_end
+        FROM system.lakeflow.job_run_timeline
+        WHERE run_id IS NOT NULL
+        GROUP BY run_id
+        """
+    )
+
+    # 3) VM cost per run from the scoped BigQuery billing view.
     creds = bq_billing.gcp_credentials(dbutils, args.secret_scope, args.secret_key)
     vm = bq_billing.vm_cost_by_run(creds, args.bq_view, platform="databricks")
     vm_sdf = spark.createDataFrame(
         [(k, float(v)) for k, v in vm.items()], schema="run_id string, gcp_vm_cost_usd double"
     )
 
-    # 3) Join, shape to the results schema, MERGE by (run_id, platform).
+    # 4) Join, shape to the results schema, MERGE by (run_id, platform).
     now = dt.datetime.utcnow()
     rows = (
-        dbu.join(vm_sdf, "run_id", "left")
+        dbu.join(timing, "run_id", "left")
+        .join(vm_sdf, "run_id", "left")
         .withColumn("platform", F.lit("databricks"))
         .withColumn("duration_s", F.col("run_end").cast("double") - F.col("run_start").cast("double"))
         .withColumn("gcp_vm_cost_usd", F.coalesce(F.col("gcp_vm_cost_usd"), F.lit(0.0)))

@@ -72,7 +72,7 @@ lives in the Databricks secret scope; the Databricks SP that needs it reads it v
 
 | GCP SA | Read by | GCP access |
 |---|---|---|
-| `gcp-dataproc-runner` | `bench-runner` | `dataproc.jobs.create` + `dataproc.jobs.setIamPolicy` at the **project level** in the client's Dataproc project (to submit jobs + grant the collector per-job) |
+| `gcp-dataproc-runner` | `bench-runner` | `dataproc.jobs.create` + `dataproc.jobs.setIamPolicy` at the **project level** in the Dataproc project (to submit jobs + grant the collector per-job `dataproc.jobs.get` privileges) |
 | `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query + `dataproc.jobs.get` (granted per-job by the runner — §4) |
 
 Store each key in its **own scope** (one per SA):
@@ -119,13 +119,10 @@ Steps (account admin, then catalog owner):
    ids into `databricks.yml` (`runner_sp` / `collector_sp` / `analyst_sp`) for `run_as` and
    the dashboard.
 2. **Runner entitlement** — grant `bench-runner` **allow-cluster-create** (no cluster policies).
-3. **Enable the system schemas** the collector reads (metastore/account admin):
-   ```bash
-   databricks system-schemas enable <metastore-id> billing
-   databricks system-schemas enable <metastore-id> compute
-   databricks system-schemas enable <metastore-id> query
-   databricks system-schemas enable <metastore-id> access
-   ```
+3. **System-table schemas** are enabled on the metastore in **Phase 1** (see
+   [`../databricks-account-setup`](../databricks-account-setup/README.md)). The collector reads
+   only `billing` (DBU + `list_prices`) and `lakeflow` (`job_run_timeline` for runtime) —
+   confirm those two are enabled.
 4. **Run the grants** — as the `analytics` catalog owner, run [`sql/grants.sql`](sql/grants.sql)
    with each SP's application id substituted for `:runner` / `:collector` / `:analyst`.
 5. **Secret ACLs** — each SP READ on **only its own** scope (§3):

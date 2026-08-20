@@ -48,8 +48,8 @@ Private Google Access (no public egress needed).
 Every run lands one row in `analytics.benchmark.results` (see `sql/results_table.sql`), keyed
 by `run_id`. Cost has two parts:
 
-- **Databricks runs:** DBU $ (from `system.billing.usage`, keyed by `job_run_id`) **+** VM $
-  (from the BigQuery billing view).
+- **Databricks runs:** DBU $ (`system.billing.usage`, keyed by `job_run_id`) + runtime
+  (`system.lakeflow.job_run_timeline`) **+** VM $ (the BigQuery billing view).
 - **Dataproc runs:** runtime (from the Dataproc Jobs API) **+** VM $ (same billing view).
 
 `run_id` is the join key on both cost sources: on Databricks it is injected as a VM label via
@@ -59,7 +59,7 @@ is the Dataproc job id set as a label. Per-run cost is therefore unambiguous.
 ```mermaid
 flowchart TB
     R["analytics.benchmark.results"]
-    C1["collect_dbx<br/>DBU (system tables) + VM $ (BQ view)"]
+    C1["collect_dbx<br/>DBU + runtime (system tables) + VM $ (BQ view)"]
     C2["collect_dataproc<br/>runtime (Dataproc API) + VM $ (BQ view)"]
     D["Lakeview dashboard"]
     C1 --> R

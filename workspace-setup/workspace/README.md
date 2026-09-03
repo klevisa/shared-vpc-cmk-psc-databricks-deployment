@@ -56,7 +56,7 @@ Copied into the next phase's `terraform.tfvars` (or wired via `terraform_remote_
 
 - `workspace_id` : the workspace id → **step 2.5 (post-workspace)**
 - `workspace_url` : the workspace URL → **step 2.5 (post-workspace)** (DNS records)
-- `gcp_workspace_sa` : the workspace service account (`db-…@prod-gcp-…`) → **step 2.5 (post-workspace)** (subnet grant)
+- `gcp_workspace_sa` : the workspace service account (`db-…@prod-gcp-…`) → **step 2.5 (post-workspace)** (subnet grant) **and step 2.6 (cmek-workspace-grant)** (CMEK grant)
 - `metastore_assignment` : the metastore assigned to the workspace (informational)
 
 ## How to run
@@ -65,7 +65,7 @@ Copied into the next phase's `terraform.tfvars` (or wired via `terraform_remote_
 terraform init && terraform apply -var-file=terraform.tfvars && terraform output
 ```
 
-Then **re-check step 2.2's PSC status outputs** — registering the endpoints here flips them to **ACCEPTED**. Hand the outputs above to step 2.5.
+Then **re-check step 2.2's PSC status outputs** — registering the endpoints here flips them to **ACCEPTED**. Hand the outputs above to steps 2.5 and 2.6.
 
 ## Additional info
 
@@ -73,4 +73,4 @@ This is where the workspace actually comes into being, and it happens entirely o
 
 The order inside the phase matters: we **register the CMEK key** (step 2.3's key id, for both storage and managed services), **register the two PSC endpoints** (referencing the host project and the step 2.2 endpoint names), set the **private access settings**, build the **network config** pointing at the host-project VPC and node subnet, and finally create the **workspace** with `cloud_resource_container` in the service project. Registering the endpoints is also what makes the *producer* (Databricks) accept the PSC connections — so after this apply, the forwarding rules step 2.2 created flip from **PENDING** to **ACCEPTED**.
 
-No **workspace admin** is provisioned here. The account admin running this apply already holds workspace-admin implicitly on every workspace it creates, so the workspace is administered the moment it exists. To grant a *delegated* admin (a human who shouldn't be a full account admin), sync them via SCIM into the account first, then assign them as workspace `ADMIN` over the account API (worked example in `databricks.tf`). The workspace is not fully usable yet: clusters can't launch and hostnames don't resolve until **step 2.5** grants the workspace SA on the subnet and writes the DNS records.
+No **workspace admin** is provisioned here. The account admin running this apply already holds workspace-admin implicitly on every workspace it creates, so the workspace is administered the moment it exists. To grant a *delegated* admin (a human who shouldn't be a full account admin), sync them via SCIM into the account first, then assign them as workspace `ADMIN` over the account API (worked example in `databricks.tf`). The workspace is not fully usable yet: two handback phases must still run. They depend only on this step's outputs and can run in parallel. **Step 2.5** (Network Eng) grants the workspace SA `networkUser` on the subnet and writes the DNS records — until then clusters can't launch and hostnames don't resolve. **Step 2.6** (Security/KMS) grants the workspace SA `encrypterDecrypter` on the CMEK key — until then the `MANAGED_SERVICES` encryption registered above (control-plane data: notebooks, results, secrets, SQL history) isn't authorized on the key.

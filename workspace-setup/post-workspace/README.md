@@ -4,14 +4,14 @@
 
 ## What it does
 
-The final handback — the two things that could only happen **after** the workspace existed:
+The network-team handback — the two things that could only happen **after** the workspace existed:
 
 - **Workspace-SA subnet grant** — gives the Databricks workspace SA `compute.networkUser` on the host node subnet, so it can launch cluster VMs
 - **DNS A-records** — writes the four records into the step 2.2 zone so workspace hostnames resolve to the private PSC IPs. The names derive from the workspace URL (e.g. `dp-<workspace-id>`, where `<workspace-id>` is the numeric id in the workspace URL):
   - workspace URL / `dp-<workspace-id>` / `<region>.psc-auth` → frontend IP
   - `tunnel.<region>` → backend IP
 
-After this, clusters start and the workspace is fully usable.
+After this, clusters start and hostnames resolve. Managed-services CMEK encryption is authorized by the parallel **step 2.6** — the workspace is fully usable once both handbacks are applied.
 
 ## Pre-reqs
 
@@ -49,7 +49,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 ## Outputs
 
-None — this is the final phase; it grants access and writes records rather than producing values for a downstream config.
+None — this phase grants access and writes records rather than producing values for a downstream config.
 
 ## How to run
 
@@ -61,10 +61,10 @@ Then verify: a launched cluster reaches **RUNNING** (backend relay), and `nslook
 
 ## Additional info
 
-Two grants had to wait until the workspace existed, which is why they're a separate final phase run by the network team (a "handback").
+Two grants had to wait until the workspace existed, which is why they're a separate phase run by the network team (a "handback"). A third post-workspace grant — the workspace SA's `encrypterDecrypter` on the CMEK key — is owned by the Security team, so it lives in its own parallel handback, **step 2.6** (`cmek-workspace-grant/`), rather than here.
 
 First, the **workspace service account** (`gcp_workspace_sa`, minted by step 2.4 as `db-<id>@prod-gcp-<region>`) is the principal that actually launches cluster VMs. It needs `compute.networkUser` on the **host** node subnet to place those VMs across the project boundary — and it didn't exist when step 2.2 ran, so its grant lands here. Without it, clusters fail to start.
 
 Second, the **four DNS A-records** go into the private zone step 2.2 created. They need both the endpoint IPs (step 2.2) and the workspace URL (step 2.4) — the record names are derived from the URL — so they couldn't be written earlier. Once they exist, workspace hostnames resolve to the private PSC IPs inside the VPC and traffic never leaves the private path.
 
-With this phase applied, the deployment is complete: launch a cluster to confirm the backend relay works, and resolve/curl the workspace URL from inside the VPC to confirm the private frontend.
+With this phase **and step 2.6** applied, the deployment is complete: launch a cluster to confirm the backend relay works, and resolve/curl the workspace URL from inside the VPC to confirm the private frontend.

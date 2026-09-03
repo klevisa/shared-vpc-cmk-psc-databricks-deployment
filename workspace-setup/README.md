@@ -25,6 +25,7 @@ Each step below links to its config's README for the full inputs, outputs, and c
 | **2.3 · CMEK** | [`cmek/`](cmek/README.md) — keyring, key, grants to service-project compute-system + gs-project-accounts agents | **Cloud Security / KMS** | `cloudkms.admin` on **SERVICE** |
 | **2.4 · Create the workspace** | [`workspace/`](workspace/README.md) — VPC-endpoint regs, private access settings, network config, CMEK registration, workspace, metastore assignment | **Data / Databricks Platform** | Databricks **account admin** — no GCP project roles (this step only calls the account API) |
 | **2.5 · Post-workspace config** | [`post-workspace/`](post-workspace/README.md) — workspace-SA `networkUser` subnet grant + DNS **records** (4 A-records) | **Network Engineering / Cloud IAM** | `compute.networkAdmin` + `dns.admin` on **HOST** |
+| **2.6 · MANAGED_SERVICES CMEK grant** | [`cmek-workspace-grant/`](cmek-workspace-grant/README.md) — workspace-SA `cryptoKeyEncrypterDecrypter` on the CMEK key (managed-services encryption) | **Cloud Security / KMS** | `cloudkms.admin` on **SERVICE** |
 
 > Your identities and groups arrive earlier, in **Phase 1.2 (IdP Sync)** — they're
 > already in the account by the time you reach here. Assigning a synced group as workspace
@@ -54,8 +55,15 @@ Three dependencies cross team boundaries. They are the reason the steps are orde
 3. **DNS records need both sides.** The A-records need the PE IPs (step 2.2) **and**
    the workspace URL (step 2.4), so the *records* are step 2.5 even though the *zone*
    is step 2.2.
+4. **The MANAGED_SERVICES CMEK grant needs both the key and the workspace SA.** The
+   workspace SA encrypts control-plane data with the CMEK key, so it needs
+   `cryptoKeyEncrypterDecrypter` on it — but the key's IAM is Security-owned (step 2.3)
+   and the SA doesn't exist until step 2.4. So the grant is step 2.6, run by the Security
+   team (not the network team of step 2.5). Databricks does not auto-grant this in a
+   least-privilege deployment.
 
-Everything else is parallel: **steps 2.2 and 2.3 are independent** (network vs. KMS).
+Everything else is parallel: **steps 2.2 and 2.3 are independent** (network vs. KMS), and
+so are the two handbacks **2.5 and 2.6** (both need only step 2.4's outputs).
 
 ---
 
@@ -68,6 +76,7 @@ flowchart TB
     P2["2.3 · CMEK<br/>CMEK key + agent grants"]
     P3["2.4 · Create the workspace<br/>register endpoints then ACCEPTED · workspace"]
     P4["2.5 · Post-workspace config<br/>workspace-SA subnet grant + DNS records"]
+    P5["2.6 · MANAGED_SERVICES CMEK grant<br/>workspace-SA encrypterDecrypter on the key"]
 
     P0 -->|"service_project_id + number"| P1
     P0 -->|"service_project_id + number"| P2
@@ -75,12 +84,16 @@ flowchart TB
     P2 -->|"cmek_key_id"| P3
     P1 -->|"endpoint IPs + DNS zone"| P4
     P3 -->|"gcp_workspace_sa + workspace_url"| P4
+    P2 -->|"cmek_key_id"| P5
+    P3 -->|"gcp_workspace_sa"| P5
 ```
 
 Steps 2.2 and 2.3 branch off step 2.1 with no edge between them, so they run in parallel.
 Registering the endpoints in step 2.4 is what flips the step-2.2 PSC forwarding rules from
-**PENDING** to **ACCEPTED**. Step 2.5 is the handback that makes clusters able to launch and
-hostnames resolve.
+**PENDING** to **ACCEPTED**. Steps 2.5 and 2.6 are the handbacks that make clusters able to
+launch, hostnames resolve, and managed-services encryption work. They both depend only on
+step 2.4's outputs (2.5 as the network team, 2.6 as the security team), so they can run in
+parallel with each other.
 
 ---
 
@@ -131,8 +144,9 @@ Runs with `cloudkms.admin` on the service project.
 
 1. `kms.tf` — keyring + crypto key in the **service** project; grant encrypt/decrypt to
    the service project's `compute-system` (VM disks) and `gs-project-accounts` (GCS)
-   agents. (The `MANAGED_SERVICES` grant is added by Databricks at registration in
-   step 2.4.)
+   agents. This is the `STORAGE` use case only; the `MANAGED_SERVICES` grant goes to
+   the workspace SA in **step 2.6**, once that SA exists (Databricks does not auto-grant
+   it in a least-privilege deployment).
 
 **Handoff (output):** `cmek_key_id` (the full KMS resource id).
 
@@ -164,14 +178,26 @@ Runs with the host-project network identity again. Reads step 2.4 + step 2.2 out
 **Result:** clusters launch (backend relay works) and workspace hostnames resolve to the
 private PSC IPs inside the VPC (frontend works).
 
+### 2.6 — Cloud Security / KMS handback → [`cmek-workspace-grant/`](cmek-workspace-grant/README.md)  *(parallel with step 2.5)*
+
+Runs with the security SA from step 2.3 again (`cloudkms.admin` on the service project).
+Reads step 2.3 + step 2.4 outputs.
+
+1. `iam.tf` — grant `roles/cloudkms.cryptoKeyEncrypterDecrypter` on the CMEK **key** to the
+   workspace SA (`gcp_workspace_sa` from step 2.4). This authorizes the `MANAGED_SERVICES`
+   use case, so control-plane data (notebooks, results, secrets, SQL history) is encrypted
+   with your key. The `STORAGE` grants were made in step 2.3; this is the other half.
+
+**Result:** managed-services data is CMEK-encrypted against your key.
+
 ---
 
 ## Running the steps
 
-Each folder is a standard root config; run them in order (step 2.3 can run alongside step 2.2):
+Each folder is a standard root config; run them in order (step 2.3 can run alongside step 2.2, and step 2.6 alongside step 2.5):
 
 ```bash
-cd service-project     # then network / cmek / workspace / post-workspace
+cd service-project     # then network / cmek / workspace / post-workspace / cmek-workspace-grant
 terraform init
 terraform apply -var-file=terraform.tfvars
 terraform output       # feed the outputs into the next step (see its README's Inputs)
@@ -202,9 +228,10 @@ credential, a shared state file, or a shared over-privileged identity.
 This folder contains one root config per step, each with its own state, backend, and team identity:
 
 ```
-service-project/   # 2.1 — Cloud Foundation  (org/folder identity)
-network/           # 2.2 — Network Eng        (host-project network identity)
-cmek/              # 2.3 — Security / KMS      (service-project cloudkms.admin)
-workspace/         # 2.4 — Data Platform       (account-admin identity)
-post-workspace/    # 2.5 — Network / IAM       (host-project network identity)
+service-project/     # 2.1 — Cloud Foundation  (org/folder identity)
+network/             # 2.2 — Network Eng        (host-project network identity)
+cmek/                # 2.3 — Security / KMS      (service-project cloudkms.admin)
+workspace/           # 2.4 — Data Platform       (account-admin identity)
+post-workspace/      # 2.5 — Network / IAM       (host-project network identity)
+cmek-workspace-grant/ # 2.6 — Security / KMS     (service-project cloudkms.admin)
 ```

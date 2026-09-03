@@ -27,7 +27,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 | Phase | Folder |
 |---|---|
 | 1. Databricks Account Setup | [`databricks-account-setup/`](databricks-account-setup/README.md) |
-| 2. Workspace Setup | [`workspace-setup/`](workspace-setup/README.md) (steps 2.1–2.5) |
+| 2. Workspace Setup | [`workspace-setup/`](workspace-setup/README.md) (steps 2.1–2.6) |
 | 3. Data Access | [`data-access/`](data-access/README.md) |
 | 4. Serverless Setup | [`serverless-setup/`](serverless-setup/README.md) |
 | 5. Benchmark Setup | [`benchmark/prerequisites.md`](benchmark/prerequisites.md) |
@@ -53,6 +53,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 | **[2.3 CMEK](workspace-setup/cmek/README.md)** | service project exists | Cloud Security / KMS | **GCP:** KMS admin (service project) | CMEK keyring + key; compute & storage agents granted encrypt/decrypt |
 | **[2.4 Workspace creation](workspace-setup/workspace/README.md)** | network + encryption keys | Databricks | **Databricks:** account admin (account API) | Workspace (URL, id, workspace SA); CMEK+PSC+network registered; assigned to the regional metastore |
 | **[2.5 Post-workspace config](workspace-setup/post-workspace/README.md)** | 2.4 complete | Network Eng / Cloud IAM | **GCP:** network-user grant + DNS admin (host project) | Workspace SA `networkUser` on node subnet; DNS A-records; PSC endpoints ACCEPTED |
+| **[2.6 MANAGED_SERVICES CMEK grant](workspace-setup/cmek-workspace-grant/README.md)** | 2.3 + 2.4 complete | Cloud Security / KMS | **GCP:** KMS admin (service project) | Workspace SA `cryptoKeyEncrypterDecrypter` on the CMEK key; managed-services data CMEK-encrypted |
 
 ## 3. Data Access
 → [`data-access/`](data-access/README.md)
@@ -95,7 +96,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 
 ```
 databricks-account-setup/  Phase 1 — account, admin, metastore, IdP sync (account-console setup)
-workspace-setup/           Phase 2 — the secure workspace (steps 2.1–2.5, each its own config)
+workspace-setup/           Phase 2 — the secure workspace (steps 2.1–2.6, each its own config)
 data-access/               Phase 3 — read-only + read-write Unity Catalog catalogs over GCS
 serverless-setup/          Phase 4 — serverless compute (NCC, perimeter, firewall)
 benchmark/                 Phases 5–6 — deploy workloads, run, measure; setup in prerequisites.md

@@ -61,4 +61,15 @@ Then hand `cmek_key_id` to step 2.4.
 
 step 2.3 owns the encryption key on its own, so the security team controls it independently of everyone else. The key lives in the **service project** because that's where the resources it encrypts live — the workspace's GCE disks and GCS buckets — so it's the service project's own Google-managed agents that do the encrypting. We grant `cryptoKeyEncrypterDecrypter` to two of them: the `compute-system` agent (VM disks) and the `gs-project-accounts` agent (GCS). Those agents must already exist, which is why step 2.1 provisions them first.
 
-We register the key for both **STORAGE** and **MANAGED_SERVICES** use cases in step 2.4; the STORAGE grants are the ones set here, and Databricks adds its own **MANAGED_SERVICES** grant automatically when the key is registered. The only thing that leaves this phase is the key id — step 2.4 takes it from here and wires it into the workspace so both storage and managed services are CMEK-encrypted.
+The only thing that leaves this phase is the key id — step 2.4 takes it from here and registers it with the workspace for **both** the STORAGE and MANAGED_SERVICES use cases.
+
+### STORAGE vs MANAGED_SERVICES — one key, two encryptors, two grants
+
+The two use cases protect data in two different places, encrypted by two different identities — which is why the grants are split across two steps:
+
+| Use case | What it encrypts | Where it lives | Who does the encrypting | Grant made in |
+|---|---|---|---|---|
+| **STORAGE** | Workspace GCS bucket (DBFS root, system data) + cluster VM persistent disks | Your **service project** (data plane) | The service project's **Google service agents** (`compute-system`, `gs-project-accounts`) | **This step (2.3)** |
+| **MANAGED_SERVICES** | Notebook source, command results, secrets, Databricks SQL history | Databricks' **control plane** | The **Databricks workspace SA** (`db-…`) | **step 2.6** |
+
+The principle: whoever physically writes the data at rest is the one that needs `cryptoKeyEncrypterDecrypter`. For STORAGE that's Google's own services (so we grant their agents, here). For MANAGED_SERVICES that's Databricks (so the workspace SA gets the grant — but only in step 2.6, because the SA doesn't exist until the workspace is created in step 2.4). In a least-privilege deployment Databricks does **not** grant itself: the step-2.4 key registration only calls the account API and never touches the key's IAM.

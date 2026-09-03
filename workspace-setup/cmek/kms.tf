@@ -1,9 +1,12 @@
 # -----------------------------------------------------------------------------
 # CMEK key in the SERVICE project. Owned by Cloud Security / KMS.
-# STORAGE use case  -> grant the SERVICE project's Google-managed agents here:
+# This step makes only the STORAGE-use-case grants. Grant the SERVICE project's
+# Google-managed agents here:
 #     service-<num>@compute-system   (VM disks)
 #     service-<num>@gs-project-accounts (GCS)
-# MANAGED_SERVICES  -> Databricks auto-grants its own SA at registration (step 2.4).
+# MANAGED_SERVICES  -> granted to the workspace SA in step 2.6, once the SA exists.
+#   In a least-privilege deployment Databricks does NOT auto-grant itself (the step-2.4
+#   key registration only calls the account API and never touches the key's IAM).
 #
 # NOTE: the service agents must already exist (Cloud Foundation, step 2.1) or these
 # grants fail with 400 "does not exist".

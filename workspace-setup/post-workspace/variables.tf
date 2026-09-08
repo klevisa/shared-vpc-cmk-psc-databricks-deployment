@@ -1,7 +1,7 @@
 # ---- Identity ----
 variable "google_service_account_email" {
   type        = string
-  description = "NETWORK team's automation SA (same as step 2.2). Needs compute.networkAdmin + dns.admin on the HOST project. Runner needs iam.serviceAccountTokenCreator on it."
+  description = "NETWORK team's automation SA (same as step 2.2). Needs compute.networkAdmin + dns.admin + roles/iam.roleAdmin (for the custom network role) on the HOST project. Runner needs iam.serviceAccountTokenCreator on it."
 }
 
 # ---- Handoff from step 2.2 (network) ----

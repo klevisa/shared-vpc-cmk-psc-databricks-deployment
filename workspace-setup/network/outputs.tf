@@ -1,4 +1,4 @@
-# Handoff → consumed by step 2.4 (workspace) and step 2.5 (post-workspace).
+# Handoff → consumed by step 2.4 (workspace) and step 2.6 (post-workspace).
 output "host_project" { value = var.vpc_network_project_id }
 output "vpc_name" { value = google_compute_network.vpc.name }
 output "node_subnet_name" { value = google_compute_subnetwork.node_subnet.name }

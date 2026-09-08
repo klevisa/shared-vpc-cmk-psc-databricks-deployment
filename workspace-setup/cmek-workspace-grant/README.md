@@ -1,4 +1,4 @@
-# 2.6 · MANAGED_SERVICES CMEK grant — Cloud Security / KMS
+# 2.7 · MANAGED_SERVICES CMEK grant — Cloud Security / KMS
 
 > ← [Phase 2 · Workspace Setup](../README.md) · [PoC playbook](../../README.md)
 
@@ -8,7 +8,7 @@ Grants the Databricks **workspace service account** (minted by step 2.4) `crypto
 
 - **Workspace-SA key grant** — the workspace SA encrypts the workspace's managed-services data (notebook source, command results, secrets, Databricks SQL query history) in the **control plane** with your key. Without this grant that data can't be encrypted/decrypted against the CMEK.
 
-This is a Security-team handback: it could only happen **after** the workspace SA existed (step 2.4), but the CMEK key's IAM is owned by Security (step 2.3) — so it's the Security SA, not the network SA of step 2.5, that makes the grant.
+This is a Security-team handback: it could only happen **after** the workspace SA existed (step 2.4), but the CMEK key's IAM is owned by Security (step 2.3) — so it's the Security SA, not the network SA of step 2.6, that makes the grant.
 
 ## Why this is separate from step 2.3
 

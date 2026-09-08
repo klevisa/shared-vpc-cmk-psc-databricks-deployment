@@ -1,7 +1,20 @@
 # -----------------------------------------------------------------------------
 # Databricks account objects + workspace. Owned by Data / Databricks Platform.
 # Inputs come from step 2.2 (host network / PSC endpoint names) and step 2.3 (CMEK
-# key id). After apply, confirm the Phase-1 PSC endpoints have flipped to ACCEPTED.
+# key id). After apply, confirm the step-2.2 PSC endpoints have flipped to ACCEPTED.
+#
+# LEAST-PRIVILEGE TWO-PHASE STANDUP (see var.finalize):
+#   This config is applied TWICE against the same state. The workspace creator SA
+#   (databricks_account_admin_sa) holds only READ-ONLY GCP creator roles, so it can
+#   never build the workspace's GCS/GCE resources itself. Instead:
+#     Step 2.4 (finalize=false): create the workspace paused in PROVISIONING; this
+#                 mints and returns gcp_workspace_sa without provisioning resources.
+#     Steps 2.5-2.7: grant that workspace SA its operator roles (project + resource
+#                 roles on the service project, network role on the subnet, CMEK).
+#     Step 2.8 (finalize=true): re-apply → expected_workspace_status RUNNING → the
+#                 now-authorized workspace SA provisions the buckets/VMs → RUNNING.
+#   The account objects below (CMEK reg, PSC endpoint regs, PAS, network) are created
+#   in phase 1 and are what flip the step-2.2 PSC endpoints PENDING → ACCEPTED.
 # -----------------------------------------------------------------------------
 
 resource "random_string" "suffix" {
@@ -70,7 +83,8 @@ resource "databricks_mws_networks" "this" {
   }
 }
 
-# The workspace — GCE/GCS resources land in the SERVICE project.
+# The workspace — GCE/GCS resources land in the SERVICE project, but only once the
+# workspace SA has its operator roles and we re-apply with finalize=true (step 2.8).
 resource "databricks_mws_workspaces" "this" {
   provider       = databricks.accounts
   account_id     = var.databricks_account_id
@@ -83,14 +97,21 @@ resource "databricks_mws_workspaces" "this" {
     }
   }
 
+  # PHASE 1 (finalize=false): PROVISIONING pauses the build and returns gcp_workspace_sa
+  # without creating any GCS/GCE. PHASE 2 (finalize=true): RUNNING finalizes the workspace,
+  # by which point steps 2.5-2.7 have granted the SA the roles it needs to build them.
+  expected_workspace_status = var.finalize ? "RUNNING" : "PROVISIONING"
+
   private_access_settings_id               = databricks_mws_private_access_settings.pas.private_access_settings_id
   network_id                               = databricks_mws_networks.this.network_id
   storage_customer_managed_key_id          = databricks_mws_customer_managed_keys.this.customer_managed_key_id
   managed_services_customer_managed_key_id = databricks_mws_customer_managed_keys.this.customer_managed_key_id
 }
 
-# Optional: assign an existing Unity Catalog metastore.
+# Assign an existing Unity Catalog metastore. Only in PHASE 2 — the workspace must be
+# RUNNING before it can be attached to a metastore.
 resource "databricks_metastore_assignment" "this" {
+  count        = var.finalize ? 1 : 0
   provider     = databricks.accounts
   depends_on   = [databricks_mws_workspaces.this]
   workspace_id = databricks_mws_workspaces.this.workspace_id

@@ -6,6 +6,10 @@
 google_service_account_email = "foundation-automation@example-org-seed.iam.gserviceaccount.com"
 google_region                = "us-central1"
 
+# The workspace creator SA (same SA step 2.4 impersonates) — granted the read-only
+# creator role on the service project here.
+databricks_account_admin_sa = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com"
+
 vpc_network_project_id = "example-shared-vpc-host" # EXISTING host project
 
 service_project_id   = "example-databricks-svc" # created here (must be globally unique)

@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Private DNS ZONE only (HOST project). The 4 A-records are added in step 2.5,
+# Private DNS ZONE only (HOST project). The 4 A-records are added in step 2.6,
 # because they need the workspace URL (step 2.4) and the PE IPs (this phase).
 # The zone is authoritative for gcp.databricks.com INSIDE the VPC.
 # -----------------------------------------------------------------------------

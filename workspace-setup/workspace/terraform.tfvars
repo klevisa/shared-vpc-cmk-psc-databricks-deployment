@@ -1,8 +1,14 @@
 # ============================================================================
-# step 2.4 — Data / Databricks Platform. ILLUSTRATIVE values.
+# steps 2.4 & 2.8 — Data / Databricks Platform. ILLUSTRATIVE values.
 # The vars under "from steps 2.2/2.3" are the outputs of the upstream configs —
 # copy them in, or wire them via terraform_remote_state (see multi-team/README).
+#
+# TWO-PHASE: apply first with finalize=false (step 2.4, workspace → PROVISIONING),
+# grant the workspace SA its operator roles (steps 2.5-2.7), then re-apply with
+# finalize=true (step 2.8, workspace → RUNNING).
 # ============================================================================
+finalize = false # step 2.4: create paused. Flip to true for step 2.8 (finalize → RUNNING).
+
 databricks_account_admin_sa = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com"
 
 databricks_account_id     = "00000000-0000-0000-0000-000000000000"

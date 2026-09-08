@@ -1,7 +1,15 @@
 # ---- Identity ----
 variable "google_service_account_email" {
   type        = string
-  description = "FOUNDATION team's automation SA (impersonated). Org/folder standing: resourcemanager.projectCreator, billing.user, compute.xpnAdmin, resourcemanager.projectIamAdmin, serviceusage.serviceUsageAdmin. Runner needs iam.serviceAccountTokenCreator on it."
+  description = "FOUNDATION team's automation SA (impersonated). Org/folder standing: resourcemanager.projectCreator, billing.user, compute.xpnAdmin, resourcemanager.projectIamAdmin, serviceusage.serviceUsageAdmin, and roles/iam.roleAdmin (to create the workspace-creator custom role). Runner needs iam.serviceAccountTokenCreator on it."
+}
+
+# The least-privilege workspace CREATOR SA — the same GCP SA step 2.4 impersonates as a
+# Databricks account admin. Here it is granted the read-only creator role on the service
+# project. See databricks-account-setup/README.md (1.1) and workspace/ (step 2.4).
+variable "databricks_account_admin_sa" {
+  type        = string
+  description = "Workspace creator SA email (db account-admin automation SA), granted the read-only creator role on the service project. No serviceAccount: prefix."
 }
 variable "google_region" {
   type    = string

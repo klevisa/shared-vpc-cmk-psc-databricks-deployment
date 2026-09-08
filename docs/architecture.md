@@ -15,7 +15,7 @@ flowchart LR
         direction TB
         DNS["Private DNS zone<br/>gcp.databricks.com<br/>resolves names to private IPs"]
         subgraph NODE["node subnet 10.10.0.0/24"]
-            VM["Workspace cluster VMs (NPIP)<br/>owned by SERVICE project,<br/>placed here via networkUser"]
+            VM["Workspace cluster VMs (NPIP)<br/>owned by SERVICE project,<br/>placed here via the workspace-SA network role"]
         end
         subgraph PE["PSC subnet 10.10.1.0/28"]
             FE["Frontend PSC endpoint<br/>fwd rule + internal IP"]
@@ -47,7 +47,7 @@ flowchart LR
     FE ==>|"PSC"| PLPROXY
     BE ==>|"PSC"| NGROK
     KMS -->|"encrypts"| DATA
-    WSSA -.->|"networkUser on node subnet"| NODE
+    WSSA -.->|"network role on node subnet"| NODE
     ACCT -.->|"provisions"| SVC
 ```
 
@@ -64,8 +64,10 @@ inside the VPC everything resolves to `10.10.x` and never leaves the private pat
 | Foundation | **Host + Service** | service project, API enablement, Shared VPC host+attach, GCS service agent | 0 |
 | Network | **Host** | VPC, node + psc subnets, firewall, router/NAT, PSC IPs + forwarding rules, private DNS zone | 1 |
 | CMEK | **Service** | CMEK key + storage-agent grants | 2 |
-| Account objects | **Account** | 2 VPC endpoints, private access settings, network config, CMEK registration, workspace | 3 |
-| Cross-project IAM + DNS records | **Host** | `compute.networkUser` for the workspace SA + 4 A-records | 4 |
+| Account objects | **Account** | 2 VPC endpoints, private access settings, network config, CMEK registration, workspace (created paused, then finalized) | 3 |
+| Workspace-creator roles | **Host + Service** | read-only creator custom roles granted to the creator SA (so it can validate settings during creation) | 1–2 |
+| Workspace-SA operator roles | **Service** | project role + workspace-scoped resource role (`storage.buckets.create`, `compute.instances.create`, …) — what lets the workspace SA build its buckets/VMs | 4 |
+| Cross-project IAM + DNS records | **Host** | custom network role (`compute.subnetworks.get`/`use`) for the workspace SA + 4 A-records | 4 |
 
 ## Testing PSC
 

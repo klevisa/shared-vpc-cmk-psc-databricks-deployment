@@ -17,6 +17,7 @@ Builds the network layer of the workspace, **inside the existing host project**:
 - **Two PSC endpoints** — frontend (UI / REST) and backend (secure cluster relay) toward Databricks
 - **Private DNS zone** — makes `gcp.databricks.com` resolve to the private PSC IPs inside the VPC
 - **Static subnet grants** — let the service project's compute agents place VMs on the shared subnet
+- **Workspace-creator role (host project)** — defines the read-only creator custom role and grants it to the workspace creator SA (`databricks_account_admin_sa`), so step 2.4 can validate host-network settings during creation
 
 ## Pre-reqs
 
@@ -32,6 +33,7 @@ On the impersonated network SA (`google_service_account_email`), against the **h
 - `roles/compute.networkAdmin` — VPC, subnets, addresses, PSC forwarding rules
 - `roles/compute.securityAdmin` — firewall rules
 - `roles/dns.admin` — the private DNS zone
+- `roles/iam.roleAdmin` — define the read-only host-side workspace-creator custom role (not implied by the above)
 
 The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that SA.
 
@@ -52,6 +54,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 - `workspace_pe` / `relay_pe` : names for the frontend / backend PSC endpoints
 - `workspace_pe_ip_name` / `relay_pe_ip_name` : names for their internal IPs
 - `google_service_account_email` : the network SA this config impersonates
+- `databricks_account_admin_sa` : the workspace creator SA (the one step 2.4 impersonates) — granted the read-only creator role on the host project here
 - `google_region` : the region — a decision, but it **must be the same** across every phase
 
 **📋 Fixed lookups** — not a choice; copy the exact value for your region:
@@ -64,10 +67,10 @@ Copied into later phases' `terraform.tfvars` (or wired via `terraform_remote_sta
 
 - `host_project` : the host project id → **step 2.4 (workspace)**
 - `vpc_name` : the VPC created for the workspace → **step 2.4 (workspace)**
-- `node_subnet_name` : subnet the cluster VMs run in → **step 2.4 (workspace)** & **step 2.5 (post-workspace)**
+- `node_subnet_name` : subnet the cluster VMs run in → **step 2.4 (workspace)** & **step 2.6 (post-workspace)**
 - `workspace_pe` / `relay_pe` : frontend / backend PSC endpoint names → **step 2.4 (workspace)** (registered in the account)
-- `frontend_pe_ip` / `backend_pe_ip` : the private endpoint IPs → **step 2.5 (post-workspace)** (DNS records)
-- `private_zone_name` / `dns_name` : the private DNS zone → **step 2.5 (post-workspace)** (records)
+- `frontend_pe_ip` / `backend_pe_ip` : the private endpoint IPs → **step 2.6 (post-workspace)** (DNS records)
+- `private_zone_name` / `dns_name` : the private DNS zone → **step 2.6 (post-workspace)** (records)
 - `front_end_psc_status` / `backend_psc_status` : PSC connection status — **PENDING** now, **ACCEPTED** after step 2.4 (see below)
 
 ## How to run
@@ -88,6 +91,6 @@ We create a **VPC** (`vpc_name`) with two subnets: a **node subnet** (`node_subn
 
 The two **PSC endpoints** are the private wire to Databricks: the **frontend** (`workspace_pe`) carries UI and REST, and the **backend** (`relay_pe`) carries the secure cluster-to-control-plane relay on port 6666. Each is a forwarding rule pointing at a Databricks *service attachment* for the region. They come up **PENDING** — a PSC endpoint isn't live until the *producer* (Databricks) accepts the connection, which happens when the Data Platform team registers these endpoints in the account (step 2.4). After that, re-run `terraform output` and they'll read **ACCEPTED**.
 
-We also create the **private DNS zone** for `gcp.databricks.com` and bind it to the VPC. It's *authoritative* for that domain inside the VPC, so workspace hostnames resolve to the private PSC IPs and never leave the private path. The zone is created here, but its **A-records are added in step 2.5** — they need both the endpoint IPs (this phase) and the workspace URL (step 2.4), so they can't be written until the workspace exists.
+We also create the **private DNS zone** for `gcp.databricks.com` and bind it to the VPC. It's *authoritative* for that domain inside the VPC, so workspace hostnames resolve to the private PSC IPs and never leave the private path. The zone is created here, but its **A-records are added in step 2.6** — they need both the endpoint IPs (this phase) and the workspace URL (step 2.4), so they can't be written until the workspace exists.
 
-Finally, the **static subnet grants** give the service project's Google-managed compute agents `compute.networkUser` on the node subnet — the permission that lets a VM owned by the *service* project be placed on a subnet owned by the *host* project. The Databricks **workspace service account** needs the same grant, but it doesn't exist until the workspace is created, so that one grant happens in step 2.5.
+Finally, the **static subnet grants** give the service project's Google-managed compute agents `compute.networkUser` on the node subnet — the permission that lets a VM owned by the *service* project be placed on a subnet owned by the *host* project. The Databricks **workspace service account** needs the same grant, but it doesn't exist until the workspace is created, so that one grant happens in step 2.6.

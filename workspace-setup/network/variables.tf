@@ -1,7 +1,14 @@
 # ---- Identity ----
 variable "google_service_account_email" {
   type        = string
-  description = "NETWORK team's automation SA (impersonated). Standing roles: compute.networkAdmin + compute.securityAdmin + dns.admin on the (existing) HOST project. Runner needs iam.serviceAccountTokenCreator on it."
+  description = "NETWORK team's automation SA (impersonated). Standing roles: compute.networkAdmin + compute.securityAdmin + dns.admin + roles/iam.roleAdmin (to create the host-side workspace-creator custom role) on the (existing) HOST project. Runner needs iam.serviceAccountTokenCreator on it."
+}
+
+# The least-privilege workspace CREATOR SA (db account-admin automation SA, impersonated by
+# step 2.4). Granted the read-only creator role on the HOST project here.
+variable "databricks_account_admin_sa" {
+  type        = string
+  description = "Workspace creator SA email, granted the read-only creator role on the host project. No serviceAccount: prefix."
 }
 
 # ---- Projects ----
@@ -35,7 +42,7 @@ variable "relay_pe_ip_name" { type = string }
 variable "workspace_service_attachment" { type = string }
 variable "relay_service_attachment" { type = string }
 
-# ---- DNS (zone only; records are step 2.5) ----
+# ---- DNS (zone only; records are step 2.6) ----
 variable "private_zone_name" {
   type    = string
   default = "databricks"

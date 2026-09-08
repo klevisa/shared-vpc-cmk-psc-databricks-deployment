@@ -27,7 +27,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 | Phase | Folder |
 |---|---|
 | 1. Databricks Account Setup | [`databricks-account-setup/`](databricks-account-setup/README.md) |
-| 2. Workspace Setup | [`workspace-setup/`](workspace-setup/README.md) (steps 2.1–2.6) |
+| 2. Workspace Setup | [`workspace-setup/`](workspace-setup/README.md) (steps 2.1–2.8) |
 | 3. Data Access | [`data-access/`](data-access/README.md) |
 | 4. Serverless Setup | [`serverless-setup/`](serverless-setup/README.md) |
 | 5. Benchmark Setup | [`benchmark/prerequisites.md`](benchmark/prerequisites.md) |
@@ -48,12 +48,14 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 
 | Step | Prereqs | Teams | Privileges | Output |
 |---|---|---|---|---|
-| **[2.1 Create service project](workspace-setup/service-project/README.md)** | 1.1 + GCP host project exists | GCP Cloud Foundations | **GCP:** project creator, billing, Shared VPC admin (org/folder) | Service project created; its APIs enabled; attached to the existing Shared VPC host; service-project number + GCS service agent |
-| **[2.2 Create network](workspace-setup/network/README.md)** | service project exists | GCP Network Engineering | **GCP:** network + firewall + DNS admin (host project) | VPC + node/PSC subnets, firewall, Cloud Router+NAT, two PSC endpoints (PENDING), private DNS zone, subnet grants |
+| **[2.1 Create service project](workspace-setup/service-project/README.md)** | 1.1 + GCP host project exists | GCP Cloud Foundations | **GCP:** project creator, billing, Shared VPC admin, role admin (org/folder) | Service project created; APIs enabled; attached to Shared VPC host; service-project number + GCS service agent; read-only workspace-creator role (service) |
+| **[2.2 Create network](workspace-setup/network/README.md)** | service project exists | GCP Network Engineering | **GCP:** network + firewall + DNS + role admin (host project) | VPC + node/PSC subnets, firewall, Cloud Router+NAT, two PSC endpoints (PENDING), private DNS zone, subnet grants; read-only workspace-creator role (host) |
 | **[2.3 CMEK](workspace-setup/cmek/README.md)** | service project exists | Cloud Security / KMS | **GCP:** KMS admin (service project) | CMEK keyring + key; compute & storage agents granted encrypt/decrypt |
-| **[2.4 Workspace creation](workspace-setup/workspace/README.md)** | network + encryption keys | Databricks | **Databricks:** account admin (account API) | Workspace (URL, id, workspace SA); CMEK+PSC+network registered; assigned to the regional metastore |
-| **[2.5 Post-workspace config](workspace-setup/post-workspace/README.md)** | 2.4 complete | Network Eng / Cloud IAM | **GCP:** network-user grant + DNS admin (host project) | Workspace SA `networkUser` on node subnet; DNS A-records; PSC endpoints ACCEPTED |
-| **[2.6 MANAGED_SERVICES CMEK grant](workspace-setup/cmek-workspace-grant/README.md)** | 2.3 + 2.4 complete | Cloud Security / KMS | **GCP:** KMS admin (service project) | Workspace SA `cryptoKeyEncrypterDecrypter` on the CMEK key; managed-services data CMEK-encrypted |
+| **[2.4 Create workspace (PHASE 1)](workspace-setup/workspace/README.md)** | creator roles + network + keys | Databricks | **Databricks:** account admin + read-only creator roles | Workspace **paused in PROVISIONING**; CMEK+PSC+network registered; PSC endpoints ACCEPTED; returns workspace SA + id |
+| **[2.5 Workspace SA operator roles](workspace-setup/workspace-sa-roles/README.md)** | 2.4 (PHASE 1) | Cloud IAM | **GCP:** role admin + project IAM admin (service project) | Project + workspace-scoped resource roles granted to the workspace SA (`storage.buckets.create`, `compute.instances.create`, …) |
+| **[2.6 Post-workspace config](workspace-setup/post-workspace/README.md)** | 2.4 (PHASE 1) | Network Eng / Cloud IAM | **GCP:** network + DNS + role admin (host project) | Workspace SA network role on node subnet; DNS A-records |
+| **[2.7 MANAGED_SERVICES CMEK grant](workspace-setup/cmek-workspace-grant/README.md)** | 2.3 + 2.4 (PHASE 1) | Cloud Security / KMS | **GCP:** KMS admin (service project) | Workspace SA `cryptoKeyEncrypterDecrypter` on the CMEK key; managed-services data CMEK-encrypted |
+| **[2.8 Finalize workspace (PHASE 2)](workspace-setup/workspace/README.md)** | 2.5 + 2.6 + 2.7 | Databricks | **Databricks:** account admin (account API) | Re-apply `finalize=true` → workspace RUNNING; assigned to the regional metastore |
 
 ## 3. Data Access
 → [`data-access/`](data-access/README.md)
@@ -96,7 +98,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 
 ```
 databricks-account-setup/  Phase 1 — account, admin, metastore, IdP sync (account-console setup)
-workspace-setup/           Phase 2 — the secure workspace (steps 2.1–2.6, each its own config)
+workspace-setup/           Phase 2 — the secure workspace (steps 2.1–2.8, each its own config)
 data-access/               Phase 3 — read-only + read-write Unity Catalog catalogs over GCS
 serverless-setup/          Phase 4 — serverless compute (NCC, perimeter, firewall)
 benchmark/                 Phases 5–6 — deploy workloads, run, measure; setup in prerequisites.md

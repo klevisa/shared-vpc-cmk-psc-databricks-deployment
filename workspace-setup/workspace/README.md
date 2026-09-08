@@ -1,27 +1,44 @@
-# 2.4 · Create the workspace — Data / Databricks Platform
+# 2.4 & 2.8 · Create + finalize the workspace — Data / Databricks Platform
 
 > ← [Phase 2 · Workspace Setup](../README.md) · [PoC playbook](../../README.md)
 
 ## What it does
 
-Creates the workspace — entirely through the Databricks **account API**, no GCP resources:
+Creates the workspace through the Databricks **account API**, using the **least-privilege
+two-phase** flow. This one config is applied **twice**, toggled by `var.finalize`:
 
-- **CMEK registration** — registers the step 2.3 key for `STORAGE` + `MANAGED_SERVICES`
-- **PSC endpoint registrations** — registers the two step 2.2 endpoints (this is what flips them **PENDING → ACCEPTED**)
-- **Private access settings** — sets `public_access_enabled` (immutable after creation)
-- **Network config** — points Databricks at the host-project VPC + node subnet + both endpoints
-- **Workspace** — created with its GCE/GCS resources in the **service** project, wired to the network, PAS, and CMEK
+- **PHASE 1 — step 2.4 (`finalize=false`):**
+  - **CMEK registration** — registers the step 2.3 key for `STORAGE` + `MANAGED_SERVICES`
+  - **PSC endpoint registrations** — registers the two step 2.2 endpoints (flips them **PENDING → ACCEPTED**)
+  - **Private access settings** — `public_access_enabled` (immutable after creation)
+  - **Network config** — points Databricks at the host-project VPC + node subnet + both endpoints
+  - **Workspace** — created **paused in `PROVISIONING`**; Databricks mints and returns the
+    workspace SA (`gcp_workspace_sa`) **without** provisioning any GCS/GCE resources
+- **PHASE 2 — step 2.8 (`finalize=true`):** re-apply after the workspace SA has its operator
+  roles (steps 2.5–2.7). `expected_workspace_status` flips to `RUNNING`, the now-authorized
+  workspace SA builds its buckets/VMs, and the workspace is assigned to the metastore.
 
-No workspace admin is created — the account admin running this already has it (see Additional info).
+Why two phases: under least privilege the **creator** SA is read-only, so it can't build the
+workspace's storage/compute. The **workspace SA** does — but it doesn't exist until PHASE 1
+mints it, and can't create anything until steps 2.5–2.7 grant it operator roles. See
+[Create a least-privilege workspace on GCP](https://docs.databricks.com/gcp/en/admin/workspace/create-least-privilege-workspace).
 
 ## Pre-reqs
 
-- **steps 2.1, 2.2, and 2.3 have run** — you have the service project (step 2.1), the network + PSC endpoints + VPC/subnet names (step 2.2), and the CMEK key id (step 2.3).
-- The impersonated SA is a **Databricks account admin** (a one-time setup done by a human account admin — nothing can grant the first account admin, so it's out of band).
+- **steps 2.1, 2.2, and 2.3 have run** — service project + the **read-only creator roles**
+  (2.1 service / 2.2 host) granted to this config's SA, the network + PSC endpoints + VPC/subnet
+  names (2.2), and the CMEK key id (2.3).
+- The impersonated SA is a **Databricks account admin** (one-time, out-of-band setup).
+- Databricks Terraform provider **≥ 1.95.0** (for `expected_workspace_status`).
+- **PHASE 2 only:** steps 2.5, 2.6, and 2.7 have granted the workspace SA its operator roles.
 
 ## Privileges needed
 
-- The impersonated SA (`databricks_account_admin_sa`) is registered as a **Databricks account-admin user**. This phase talks only to `accounts.gcp.databricks.com`, so it needs **no GCP project roles**.
+- The impersonated SA (`databricks_account_admin_sa`) is registered as a **Databricks
+  account-admin user**, **and** must hold the **read-only workspace-creator roles** on the
+  service project (granted in step 2.1) and the host project (step 2.2) — the least-privilege
+  flow requires the creator to read/validate settings during creation. It needs **no
+  create-capable GCP roles**; the workspace SA does the resource creation (steps 2.5–2.7).
 
 The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that SA.
 
@@ -40,37 +57,61 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 **✍️ Your decisions this phase:**
 
+- `finalize` : `false` for step 2.4 (create paused), `true` for step 2.8 (finalize → RUNNING)
 - `databricks_workspace_name` : name for the workspace
 - `public_access_enabled` : `false` = fully private (PSC-only) — **immutable after creation**
-- `databricks_account_admin_sa` : the account-admin automation SA this config impersonates (see [databricks-account-setup](../../databricks-account-setup/README.md) 1.1)
-- `google_region` : the region — a decision, but it **must be the same** across every phase
+- `databricks_account_admin_sa` : the account-admin automation SA this config impersonates (also the creator SA granted read roles in 2.1/2.2)
+- `google_region` : the region — must be the same across every phase
 
 **📋 Given / org values** — facts you look up, not free choices:
 
-- `databricks_account_id` : your Databricks account id (from the account console)
-- `metastore_id` : the region's Unity Catalog metastore id — **required**; the workspace is explicitly assigned to it (see [`../../databricks-account-setup/README.md`](../../databricks-account-setup/README.md))
+- `databricks_account_id` : your Databricks account id
+- `metastore_id` : the region's Unity Catalog metastore id — **required**; assigned to the workspace in PHASE 2
 
 ## Outputs
 
-Copied into the next phase's `terraform.tfvars` (or wired via `terraform_remote_state`):
+Available after PHASE 1; `workspace_url` populates once RUNNING (PHASE 2):
 
-- `workspace_id` : the workspace id → **step 2.5 (post-workspace)**
-- `workspace_url` : the workspace URL → **step 2.5 (post-workspace)** (DNS records)
-- `gcp_workspace_sa` : the workspace service account (`db-…@prod-gcp-…`) → **step 2.5 (post-workspace)** (subnet grant) **and step 2.6 (cmek-workspace-grant)** (CMEK grant)
-- `metastore_assignment` : the metastore assigned to the workspace (informational)
+- `workspace_id` : the workspace id → **step 2.5 (workspace-sa-roles)** (resource-role IAM condition)
+- `gcp_workspace_sa` : the workspace SA (`db-…@prod-gcp-…`) → **steps 2.5, 2.6, 2.7** (operator-role grants)
+- `workspace_url` : the workspace URL → **step 2.6 (post-workspace)** (DNS records)
+- `metastore_assignment` : set only after PHASE 2 (informational)
 
 ## How to run
 
 ```bash
-terraform init && terraform apply -var-file=terraform.tfvars && terraform output
+# PHASE 1 (step 2.4) — create paused:
+terraform init && terraform apply -var-file=terraform.tfvars   # finalize=false
+terraform output   # hand gcp_workspace_sa + workspace_id to steps 2.5/2.6/2.7
+
+# ...apply steps 2.5, 2.6, 2.7...
+
+# PHASE 2 (step 2.8) — finalize the SAME state:
+terraform apply -var-file=terraform.tfvars -var finalize=true
+terraform output   # workspace_url now populated
 ```
 
-Then **re-check step 2.2's PSC status outputs** — registering the endpoints here flips them to **ACCEPTED**. Hand the outputs above to steps 2.5 and 2.6.
+After PHASE 1, **re-check step 2.2's PSC status outputs** — registering the endpoints flips them to **ACCEPTED**.
 
 ## Additional info
 
-This is where the workspace actually comes into being, and it happens entirely over the Databricks **account API** — there are no `google_*` resources in this phase, so it never has to reach the private workspace endpoint (which is what keeps it working even when `public_access_enabled = false`).
+The workspace comes into being over the Databricks **account API** — there are no `google_*`
+resources in this config, so it never reaches the private workspace endpoint (which is what keeps
+it working even when `public_access_enabled = false`). The GCP-side resource creation is done by
+the **workspace service account** Databricks mints, not by this config's SA.
 
-The order inside the phase matters: we **register the CMEK key** (step 2.3's key id, for both storage and managed services), **register the two PSC endpoints** (referencing the host project and the step 2.2 endpoint names), set the **private access settings**, build the **network config** pointing at the host-project VPC and node subnet, and finally create the **workspace** with `cloud_resource_container` in the service project. Registering the endpoints is also what makes the *producer* (Databricks) accept the PSC connections — so after this apply, the forwarding rules step 2.2 created flip from **PENDING** to **ACCEPTED**.
+The order inside PHASE 1 matters: register the **CMEK key** (storage + managed services), register
+the two **PSC endpoints** (host project + step 2.2 names), set the **private access settings**,
+build the **network config**, then create the **workspace** with `cloud_resource_container` in the
+service project and `expected_workspace_status = "PROVISIONING"`. Registering the endpoints is what
+makes the *producer* (Databricks) accept the PSC connections, so the step-2.2 forwarding rules flip
+**PENDING → ACCEPTED** after this apply.
 
-No **workspace admin** is provisioned here. The account admin running this apply already holds workspace-admin implicitly on every workspace it creates, so the workspace is administered the moment it exists. To grant a *delegated* admin (a human who shouldn't be a full account admin), sync them via SCIM into the account first, then assign them as workspace `ADMIN` over the account API (worked example in `databricks.tf`). The workspace is not fully usable yet: two handback phases must still run. They depend only on this step's outputs and can run in parallel. **Step 2.5** (Network Eng) grants the workspace SA `networkUser` on the subnet and writes the DNS records — until then clusters can't launch and hostnames don't resolve. **Step 2.6** (Security/KMS) grants the workspace SA `encrypterDecrypter` on the CMEK key — until then the `MANAGED_SERVICES` encryption registered above (control-plane data: notebooks, results, secrets, SQL history) isn't authorized on the key.
+No **workspace admin** is provisioned here — the account admin running the apply already holds
+workspace-admin implicitly. To grant a *delegated* admin, sync them via SCIM first, then assign them
+as workspace `ADMIN` over the account API (worked example in `databricks.tf`). Between PHASE 1 and
+PHASE 2, three grants must land — they depend only on PHASE 1's outputs and run in parallel:
+**step 2.5** (Cloud IAM) grants the workspace SA the project + resource operator roles on the
+service project (the create-capable ones); **step 2.6** (Network) grants the network role on the
+subnet and writes the DNS records; **step 2.7** (Security/KMS) grants `encrypterDecrypter` on the
+CMEK key. Once all three exist, PHASE 2 (`finalize=true`) brings the workspace to `RUNNING`.

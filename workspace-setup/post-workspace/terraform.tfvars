@@ -1,5 +1,5 @@
 # ============================================================================
-# step 2.5 — Network / Cloud IAM handback. ILLUSTRATIVE values.
+# step 2.6 — Network / Cloud IAM handback. ILLUSTRATIVE values.
 # The vars under "from steps 2.2/2.4" are upstream outputs — copy them in, or wire
 # via terraform_remote_state (see multi-team/README).
 # ============================================================================

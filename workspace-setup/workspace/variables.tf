@@ -17,6 +17,24 @@ variable "public_access_enabled" {
   default     = false
   description = "IMMUTABLE after creation. false = fully private (PSC-only)."
 }
+variable "finalize" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    Two-phase least-privilege gate. Least-privilege workspaces MUST be stood up in two applies:
+
+      finalize = false  → PHASE 1 (step 2.4): create the workspace paused in PROVISIONING.
+                          Databricks mints and returns the workspace SA (gcp_workspace_sa)
+                          WITHOUT trying to build any GCS/GCE resources yet. Apply this,
+                          then grant that SA its operator roles (steps 2.5–2.7).
+      finalize = true   → PHASE 2 (step 2.8): re-apply the SAME config after those grants
+                          exist. expected_workspace_status flips to RUNNING and the workspace
+                          SA (now authorized) provisions its buckets/VMs → workspace RUNNING.
+
+    Applying finalize=true before the operator-role grants exist will fail: the workspace SA
+    can't create its storage/compute. See create-least-privilege-workspace in the Databricks docs.
+  EOT
+}
 variable "metastore_id" {
   type        = string
   description = "REQUIRED: the region's Unity Catalog metastore id. The workspace is explicitly assigned to it. See databricks-account-setup/README.md."

@@ -1,4 +1,4 @@
-# step 2.5 — Network / Cloud IAM handback.
+# step 2.6 — Network / Cloud IAM handback.
 # Same team/identity as step 2.2 (host-project network admin). Runs AFTER the
 # workspace exists (step 2.4) to grant the workspace SA on the host subnet and add
 # the DNS records.

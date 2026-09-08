@@ -4,7 +4,7 @@
 # Google-managed agents here:
 #     service-<num>@compute-system   (VM disks)
 #     service-<num>@gs-project-accounts (GCS)
-# MANAGED_SERVICES  -> granted to the workspace SA in step 2.6, once the SA exists.
+# MANAGED_SERVICES  -> granted to the workspace SA in step 2.7, once the SA exists.
 #   In a least-privilege deployment Databricks does NOT auto-grant itself (the step-2.4
 #   key registration only calls the account API and never touches the key's IAM).
 #

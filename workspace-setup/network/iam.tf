@@ -4,7 +4,7 @@
 # service project number (no workspace), so they belong to step 2.2.
 #
 # The Databricks WORKSPACE SA grant is NOT here — that SA doesn't exist until the
-# workspace is created (step 2.4), so its networkUser grant is step 2.5.
+# workspace is created (step 2.4), so its networkUser grant is step 2.6.
 # -----------------------------------------------------------------------------
 
 locals {

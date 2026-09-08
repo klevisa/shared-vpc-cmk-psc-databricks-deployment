@@ -4,7 +4,7 @@
 # The host project is a long-standing Shared VPC host; Cloud Foundation attached the
 # service project to it in step 2.1. This config only creates the VPC and its subnets
 # within that host project.
-# Records for the DNS zone are added in step 2.5 (post-workspace).
+# Records for the DNS zone are added in step 2.6 (post-workspace).
 # -----------------------------------------------------------------------------
 
 # ---- VPC + subnets ----

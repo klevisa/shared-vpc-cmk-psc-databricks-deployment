@@ -11,6 +11,7 @@ Lays the shared base the other phases build on. The **host project already exist
   - Enabling the Compute API also provisions the compute service agent that step 2.3's CMEK grant needs
 - **Shared VPC attachment** — **attaches** the service project to the existing Shared VPC host
 - **GCS service agent** — provisioned on the service project so step 2.3's CMEK grant doesn't fail with `400 … does not exist`
+- **Workspace-creator role (service project)** — defines the read-only creator custom role and grants it to the workspace creator SA (`databricks_account_admin_sa`), so step 2.4 can validate service-project settings during creation
 
 ## Pre-reqs
 
@@ -27,6 +28,7 @@ On the impersonated foundation SA (`google_service_account_email`), at the **org
 - `roles/billing.user` — link the billing account
 - `roles/compute.xpnAdmin` — attach the service project to the Shared VPC host
 - `roles/resourcemanager.projectIamAdmin` + `roles/serviceusage.serviceUsageAdmin` — set IAM / enable APIs
+- `roles/iam.roleAdmin` — define the read-only workspace-creator custom role (not implied by `projectIamAdmin`)
 
 The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that SA.
 
@@ -42,6 +44,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 - `service_project_name` : its human-readable display name
 - `org_id` **or** `folder_id` : where to create the service project (set exactly one)
 - `google_service_account_email` : the foundation SA this config impersonates
+- `databricks_account_admin_sa` : the workspace creator SA (the one step 2.4 impersonates) — granted the read-only creator role here
 - `google_region` : the region — a decision, but it **must be the same** across every phase
 - `service_project_apis` : which APIs to enable on the service project (sensible defaults; override only if needed)
 
@@ -71,4 +74,4 @@ Then hand the outputs to the next phases.
 
 step 2.1 exists so no later phase needs org-level power. The **host project** is the network team's existing shared network, so this config never creates or modifies it — it only **attaches** the new service project to it. It **creates the service project** (the "tenant" for this one workspace), links billing, and turns on the APIs the service project needs (the host's are already on). GCP services are off by default, so without this step step 2.3 couldn't create a KMS key, step 2.4 couldn't reach the compute service agent, and so on.
 
-It then **establishes the Shared VPC relationship** — enabling the host and attaching the service project — which is the platform capability that later lets a VM *owned by the service project* run on a *subnet owned by the host project* (step 2.2 grants the specific subnet permissions, step 2.5 grants the workspace SA). Finally it **provisions the service agents**: the GCS agent via a data source, and the compute agent implicitly by enabling the Compute API, so step 2.3's CMEK grants have real principals to bind to.
+It then **establishes the Shared VPC relationship** — enabling the host and attaching the service project — which is the platform capability that later lets a VM *owned by the service project* run on a *subnet owned by the host project* (step 2.2 grants the specific subnet permissions, step 2.6 grants the workspace SA). Finally it **provisions the service agents**: the GCS agent via a data source, and the compute agent implicitly by enabling the Compute API, so step 2.3's CMEK grants have real principals to bind to.

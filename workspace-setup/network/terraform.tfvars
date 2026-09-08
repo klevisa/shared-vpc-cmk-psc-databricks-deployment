@@ -6,6 +6,10 @@ vpc_network_project_id        = "example-shared-vpc-host" # EXISTING HOST projec
 google_service_project_number = "111111111111"            # from step 2.1 output service_project_number
 google_region                 = "us-central1"
 
+# The workspace creator SA (same SA step 2.4 impersonates) — granted the read-only
+# creator role on the HOST project here.
+databricks_account_admin_sa = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com"
+
 vpc_name         = "example-vpc"
 node_subnet_name = "example-node-subnet"
 node_subnet_cidr = "10.10.0.0/24"

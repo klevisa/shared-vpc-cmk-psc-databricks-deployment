@@ -16,11 +16,21 @@ resource "databricks_storage_credential" "ro" {
 }
 
 # GCS IAM — read-only, granted by the data-bucket owner to the generated SA.
+# PoC time-box: both bindings self-expire at var.poc_expiry via a request.time IAM
+# condition, so the read grant on YOUR existing data bucket lapses on the PoC end date
+# even if teardown slips. NOTE: GCS bucket IAM conditions require UNIFORM BUCKET-LEVEL
+# ACCESS on the bucket — confirm the existing data bucket has it enabled, or the
+# conditional binding will fail. (The analytics bucket in catalog-readwrite.tf sets it.)
 resource "google_storage_bucket_iam_member" "ro_viewer" {
   provider = google.data_bucket
   bucket   = var.readonly_bucket
   role     = "roles/storage.objectViewer"
   member   = "serviceAccount:${databricks_storage_credential.ro.databricks_gcp_service_account[0].email}"
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC read grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }
 
 resource "google_storage_bucket_iam_member" "ro_lister" {
@@ -28,6 +38,11 @@ resource "google_storage_bucket_iam_member" "ro_lister" {
   bucket   = var.readonly_bucket
   role     = "roles/storage.legacyBucketReader"
   member   = "serviceAccount:${databricks_storage_credential.ro.databricks_gcp_service_account[0].email}"
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC read grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }
 
 # VPC-SC ingress — let the generated SA reach the bucket over the Storage API,

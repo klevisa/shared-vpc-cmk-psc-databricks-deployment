@@ -37,4 +37,13 @@ resource "google_kms_crypto_key_iam_member" "storage_agents" {
   crypto_key_id = google_kms_crypto_key.key.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = each.value
+
+  # PoC time-box: self-expires at var.poc_expiry via a request.time IAM condition. After
+  # expiry the service agents can no longer encrypt/decrypt with this key, so VM disks and
+  # GCS objects can't be served — the intended teardown effect. Keep poc_expiry deliberate.
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }

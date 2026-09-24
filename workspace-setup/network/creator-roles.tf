@@ -13,7 +13,11 @@
 # the network SA's standing roles (compute.networkAdmin/securityAdmin/dns.admin don't imply it).
 # -----------------------------------------------------------------------------
 
+# Creation-only: needed ONLY for step 2.4's read-only host-network validation. Torn down in
+# the "End state" — set create_workspace_creator_role = false and re-apply to remove the
+# binding + the custom role. See workspace-setup/creator-teardown/.
 resource "google_project_iam_custom_role" "ws_creator_host" {
+  count       = var.create_workspace_creator_role ? 1 : 0
   project     = var.vpc_network_project_id
   role_id     = "lpw.databricks.workspace.creator.host.v2"
   title       = "Databricks LPW workspace creator (host project)"
@@ -34,7 +38,8 @@ resource "google_project_iam_custom_role" "ws_creator_host" {
 }
 
 resource "google_project_iam_member" "ws_creator_host" {
+  count   = var.create_workspace_creator_role ? 1 : 0
   project = var.vpc_network_project_id
-  role    = google_project_iam_custom_role.ws_creator_host.id
+  role    = google_project_iam_custom_role.ws_creator_host[0].id
   member  = "serviceAccount:${var.databricks_account_admin_sa}"
 }

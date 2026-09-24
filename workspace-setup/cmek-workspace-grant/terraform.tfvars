@@ -7,6 +7,9 @@ google_service_account_email = "kms-automation@example-databricks-svc.iam.gservi
 google_project_name          = "example-databricks-svc"                                        # SERVICE project (same as step 2.3)
 google_region                = "us-central1"
 
+# PoC end date — the workspace-SA CMEK grant auto-expires after this (request.time).
+poc_expiry = "2026-12-31T00:00:00Z"
+
 # ---- from step 2.3 (cmek) ----
 cmek_key_id = "projects/example-databricks-svc/locations/us-central1/keyRings/example-kr/cryptoKeys/example-cmek-key"
 

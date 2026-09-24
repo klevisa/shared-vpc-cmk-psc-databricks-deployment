@@ -11,6 +11,15 @@ variable "databricks_account_admin_sa" {
   description = "Workspace creator SA email, granted the read-only creator role on the host project. No serviceAccount: prefix."
 }
 
+# End-state teardown toggle. TRUE during workspace creation (steps 2.1-2.4). After the
+# workspace is RUNNING (2.8), flip to FALSE and re-apply to strip the read-only creator role
+# on the host project — it is only needed at creation. See workspace-setup/creator-teardown/.
+variable "create_workspace_creator_role" {
+  type        = bool
+  default     = true
+  description = "Whether to grant the read-only workspace-creator role on the host project. Set false in the End state (after step 2.8) to tear it down."
+}
+
 # ---- Projects ----
 # NOTE: the host project and the Shared VPC association already exist (Cloud
 # Foundation, step 2.1). This config only creates the VPC + subnets within the host.

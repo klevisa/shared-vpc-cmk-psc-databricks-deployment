@@ -7,24 +7,23 @@
 # service project. Without it the step-2.8 finalize can never bring the workspace RUNNING.
 #
 # Two custom roles (least-privilege flow), both on the SERVICE project:
-#   - Project role  : project-wide read + actAs (broad but harmless).
-#   - Resource role : the create/delete/use permissions, SCOPED to this workspace's
-#                     resources via an IAM condition on the workspace id.
-# The NETWORK role (subnet) is granted separately by the network team in step 2.6, and
-# the CMEK grant by security in step 2.7.
+#   - Project role  : project-wide read (list/get) only.
+#   - Resource role : create/delete/use, scoped to this workspace's resources by IAM condition.
+# actAs is granted on the compute SA only (roles/iam.serviceAccountUser, below), not
+# project-wide. Network role (subnet) = step 2.6; CMEK grant = step 2.7.
 #
-# Source of truth for the exact permission lists + the IAM condition (re-verify in review):
+# Permission lists source of truth (re-verify in review):
 #   https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/sa-permissions
 #
-# NOTE: needs roles/iam.roleAdmin (create custom roles) + roles/resourcemanager.projectIamAdmin
-# (set IAM policy) on the SERVICE project on this step's SA.
+# NOTE: this step's SA needs roles/iam.roleAdmin + roles/resourcemanager.projectIamAdmin +
+# roles/iam.serviceAccountAdmin (last one to set IAM on the compute SA) on the SERVICE project.
 # -----------------------------------------------------------------------------
 
 resource "google_project_iam_custom_role" "project_role" {
   project     = var.google_project_name
   role_id     = "lpw.databricks.project.role.v2"
   title       = "Databricks workspace SA project role"
-  description = "Project-level read + actAs for the Databricks workspace service account."
+  description = "Project-level read (list/get) for the Databricks workspace service account."
   permissions = [
     "compute.disks.list",
     "compute.globalOperations.list",
@@ -37,7 +36,7 @@ resource "google_project_iam_custom_role" "project_role" {
     "compute.zoneOperations.list",
     "compute.zones.get",
     "compute.zones.list",
-    "iam.serviceAccounts.actAs",
+    # actAs removed — granted on the compute SA only (binding below).
     "resourcemanager.projects.get",
     "serviceusage.quotas.get",
     "serviceusage.services.list",
@@ -94,6 +93,14 @@ resource "google_project_iam_member" "project_role" {
   project = var.google_project_name
   role    = google_project_iam_custom_role.project_role.id
   member  = "serviceAccount:${var.gcp_workspace_sa}"
+
+  # PoC time-box: self-expires at var.poc_expiry via a request.time IAM condition, so the
+  # grant lapses even if teardown slips. Extend/shorten by editing poc_expiry and re-applying.
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }
 
 # Resource role — granted project-wide but SCOPED by IAM condition to resources whose
@@ -102,9 +109,26 @@ resource "google_project_iam_member" "resource_role" {
   project = var.google_project_name
   role    = google_project_iam_custom_role.resource_role.id
   member  = "serviceAccount:${var.gcp_workspace_sa}"
+  # A binding takes ONE condition, so the workspace-scoping expression and the PoC
+  # time-box are AND-ed together: manage only THIS workspace's resources, and only until
+  # var.poc_expiry (request.time). After expiry the workspace SA can no longer create/manage.
   condition {
-    title       = "scope-to-workspace-${var.workspace_id}"
-    description = "Limit resource management to this workspace's own resources."
-    expression  = "resource.name.extract(\"{x}databricks\") != \"\" && resource.name.extract(\"{x}${var.workspace_id}\") != \"\""
+    title       = "scope-to-workspace-${var.workspace_id}-poc"
+    description = "Scope to this workspace's own resources AND auto-expire after the PoC end date."
+    expression  = "(resource.name.extract(\"{x}databricks\") != \"\" && resource.name.extract(\"{x}${var.workspace_id}\") != \"\") && request.time < timestamp(\"${var.poc_expiry}\")"
+  }
+}
+
+# actAs on the compute SA only — lets the workspace SA set it as the cluster VM identity.
+resource "google_service_account_iam_member" "workspace_sa_act_as_compute" {
+  service_account_id = "projects/${var.google_project_name}/serviceAccounts/${var.compute_sa_email}"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${var.gcp_workspace_sa}"
+
+  # PoC time-box (request.time).
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
   }
 }

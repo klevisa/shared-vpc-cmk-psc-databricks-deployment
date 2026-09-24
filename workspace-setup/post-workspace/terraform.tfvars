@@ -7,6 +7,9 @@ google_service_account_email = "network-automation@example-shared-vpc-host.iam.g
 vpc_network_project_id       = "example-shared-vpc-host"
 google_region                = "us-central1"
 
+# PoC end date — the workspace-SA network grant auto-expires after this (request.time).
+poc_expiry = "2026-12-31T00:00:00Z"
+
 # ---- from step 2.2 (network) ----
 node_subnet_name  = "example-node-subnet"
 private_zone_name = "databricks"

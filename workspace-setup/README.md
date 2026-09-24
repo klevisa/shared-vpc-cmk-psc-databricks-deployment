@@ -51,6 +51,7 @@ storage/compute. Reference: [Create a least-privilege workspace on GCP](https://
 | **2.6 · Post-workspace config** | [`post-workspace/`](post-workspace/README.md) — workspace-SA **network role** on the node subnet + DNS **records** (4 A-records) | **Network Engineering / Cloud IAM** | `compute.networkAdmin` + `dns.admin` + `iam.roleAdmin` on **HOST** |
 | **2.7 · MANAGED_SERVICES CMEK grant** | [`cmek-workspace-grant/`](cmek-workspace-grant/README.md) — workspace-SA `cryptoKeyEncrypterDecrypter` on the CMEK key (managed-services encryption) | **Cloud Security / KMS** | `cloudkms.admin` on **SERVICE** |
 | **2.8 · Finalize the workspace (PHASE 2)** | [`workspace/`](workspace/README.md) with `finalize=true` — re-apply → `RUNNING`; assign the metastore | **Data / Databricks Platform** | Databricks **account admin** |
+| **2.9 · Tear down the creator identity (End state)** | [`creator-teardown/`](creator-teardown/README.md) — strip the two read-only creator roles (`create_workspace_creator_role=false` re-apply of 2.1/2.2), remove the workspace-creation VPC-SC ingress, and remove/deregister the creator SA | **Cloud Foundation / Network Eng / Databricks admin** | same identities as 2.1/2.2 + `accesscontextmanager.policyAdmin` |
 
 > Your identities and groups arrive earlier, in **Phase 1.2 (IdP Sync)** — they're
 > already in the account by the time you reach here. Assigning a synced group as workspace
@@ -190,6 +191,20 @@ assignment lands here too (the workspace must be RUNNING first).
 **Result:** the workspace is RUNNING and fully usable — launch a cluster to confirm the backend
 relay works and resolve/curl the workspace URL from inside the VPC to confirm the private frontend.
 
+### 2.9 — End state: tear down the creator identity → [`creator-teardown/`](creator-teardown/README.md)
+
+The workspace-creator SA held only **read-only** roles for step 2.4's validation; once the
+workspace is RUNNING nothing uses them. This step removes the **creation-only** access — the two
+read-only creator roles (flip `create_workspace_creator_role=false` and re-apply the 2.1/2.2
+configs), the temporary workspace-creation VPC-SC ingress rule, and the workspace-creator SA
+itself — leaving the least-privilege steady state (Workspace SA + operator roles, Compute SA,
+CMEK). This is the *End state* in the [interactive walkthrough](https://klevisa.github.io/databricks-workspace-setup-app/).
+
+> If you are continuing to Phases 3–6, strip the creator **roles + ingress** now but keep the
+> account-admin **SA** until the final teardown — later phases still call the account API as it.
+> The remaining PoC grants (Workspace SA operator roles, CMEK, data-access bucket IAM) also carry
+> a `poc_expiry` `request.time` condition so they self-expire on the PoC end date.
+
 ---
 
 ## Running the steps
@@ -245,4 +260,5 @@ workspace/            # 2.4 & 2.8 — Data Platform (account-admin identity; fin
 workspace-sa-roles/   # 2.5 — Cloud IAM           (service-project roleAdmin + projectIamAdmin)
 post-workspace/       # 2.6 — Network / IAM       (host-project network identity)
 cmek-workspace-grant/ # 2.7 — Security / KMS      (service-project cloudkms.admin)
+creator-teardown/     # 2.9 — End state          (strip the creator role/SA/ingress after 2.8)
 ```

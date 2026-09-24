@@ -108,6 +108,21 @@ Dataproc permission at all.
 |---|---|---|
 | `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query. **No `dataproc.*`** — runtime is captured by Airflow. |
 
+> **PoC time-box (`request.time`).** These are PoC-lifetime grants, so add a time-bound IAM
+> condition to the collector SA's project bindings — the gcloud analogue of the `poc_expiry`
+> `request.time` conditions the Terraform configs use (`workspace-sa-roles/`, `cmek/`,
+> `cmek-workspace-grant/`, `post-workspace/`, `data-access/`). Example:
+> ```bash
+> gcloud projects add-iam-policy-binding <BILLING_PROJECT> \
+>   --member="serviceAccount:gcp-data-collector@<proj>.iam.gserviceaccount.com" \
+>   --role="roles/bigquery.jobUser" \
+>   --condition='expression=request.time < timestamp("2026-12-31T00:00:00Z"),title=poc-expiry'
+> ```
+> The grant then lapses on the PoC end date even if teardown slips. The **SA key** is a separate,
+> higher-priority concern: user-managed keys don't expire — rotate it (org policy
+> `constraints/iam.serviceAccountKeyExpiryHours`) or go keyless, and at teardown delete the key
+> **and** the SA, not just the secret scope.
+
 Store its key in a secret scope:
 ```bash
 databricks secrets create-scope benchmark_collector

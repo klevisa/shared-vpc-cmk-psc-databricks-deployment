@@ -7,5 +7,8 @@ google_project_name           = "example-databricks-svc" # from step 2.1 output 
 google_service_project_number = "111111111111"           # from step 2.1 output service_project_number
 google_region                 = "us-central1"
 
+# PoC end date — the CMEK STORAGE-agent grants auto-expire after this (request.time).
+poc_expiry = "2026-12-31T00:00:00Z"
+
 kms_keyring_name = "example-kr"
 kms_key_name     = "example-cmek-key"

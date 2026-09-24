@@ -12,6 +12,8 @@ Lays the shared base the other phases build on. The **host project already exist
 - **Shared VPC attachment** — **attaches** the service project to the existing Shared VPC host
 - **GCS service agent** — provisioned on the service project so step 2.3's CMEK grant doesn't fail with `400 … does not exist`
 - **Workspace-creator role (service project)** — defines the read-only creator custom role and grants it to the workspace creator SA (`databricks_account_admin_sa`), so step 2.4 can validate service-project settings during creation
+- **Dedicated node SA** — a compute SA for cluster VMs with **no project roles** (the workspace SA only needs `actAs` on it; UC storage credentials carry data access), so cluster VMs never run as the GCE default SA / project Editor. Its email is the `node_sa_email` output → step 2.5 `compute_sa_email`. The Cloud IAM SA (step 2.5) is granted `serviceAccountAdmin` on **this SA resource only**, so step 2.5 needs no project-wide SA-admin
+- **No default network** (`auto_create_network = false`) and an **authoritative `roles/owner` binding** to the break-glass group, which removes the Owner that `projectCreator` auto-grants to the foundation SA
 
 ## Pre-reqs
 
@@ -22,15 +24,14 @@ Lays the shared base the other phases build on. The **host project already exist
 
 ## Privileges needed
 
-On the impersonated foundation SA (`google_service_account_email`), at the **org / folder** level:
+Least-privilege split (don't grant all of these org-wide):
 
-- `roles/resourcemanager.projectCreator` — create the service project
-- `roles/billing.user` — link the billing account
-- `roles/compute.xpnAdmin` — attach the service project to the Shared VPC host
-- `roles/resourcemanager.projectIamAdmin` + `roles/serviceusage.serviceUsageAdmin` — set IAM / enable APIs
-- `roles/iam.roleAdmin` — define the read-only workspace-creator custom role (not implied by `projectIamAdmin`)
+- **Folder scope** (a dedicated PoC folder): `roles/resourcemanager.projectCreator` (create the project), `roles/billing.user` (link billing), `roles/compute.xpnAdmin` (Shared VPC attach)
+- **Service project** (after it exists, or a folder grant conditioned on `resource.name`): `roles/resourcemanager.projectIamAdmin` + `roles/serviceusage.serviceUsageAdmin` (IAM / APIs) + `roles/iam.roleAdmin` (define the creator custom role)
 
 The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that SA.
+
+> **Enforce these org policies** on the PoC folder: `iam.automaticIamGrantsForDefaultServiceAccounts` (no Editor on the GCE default SA — we also create a dedicated node SA), `iam.disableServiceAccountKeyCreation`, and (optionally) `compute.skipDefaultNetworkCreation`.
 
 ## Inputs
 
@@ -45,6 +46,9 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 - `org_id` **or** `folder_id` : where to create the service project (set exactly one)
 - `google_service_account_email` : the foundation SA this config impersonates
 - `databricks_account_admin_sa` : the workspace creator SA (the one step 2.4 impersonates) — granted the read-only creator role here
+- `project_owners` : the break-glass human group for the authoritative `roles/owner` binding (non-empty; never an SA)
+- `node_sa_account_id` : id for the dedicated node SA (default `databricks-node-sa`)
+- `cloud_iam_sa` : the step-2.5 Cloud IAM SA — granted `serviceAccountAdmin` on the node SA resource only
 - `google_region` : the region — a decision, but it **must be the same** across every phase
 - `service_project_apis` : which APIs to enable on the service project (sensible defaults; override only if needed)
 
@@ -61,6 +65,7 @@ Copied into later phases' `terraform.tfvars` (or wired via `terraform_remote_sta
 - `service_project_id` : the created service project id → **step 2.3 (cmek)** & **step 2.4 (workspace)**
 - `service_project_number` : its numeric project number → **step 2.2 (network)** & **step 2.3 (cmek)** (service-agent emails)
 - `gcs_service_agent` : the GCS service agent email → granted CMEK access in **step 2.3** (reference)
+- `node_sa_email` : the dedicated node SA email → **step 2.5** `compute_sa_email`
 
 ## How to run
 

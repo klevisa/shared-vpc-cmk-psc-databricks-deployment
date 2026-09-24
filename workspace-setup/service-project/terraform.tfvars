@@ -14,6 +14,15 @@ databricks_account_admin_sa = "databricks-automation@example-databricks-svc.iam.
 # (after step 2.8) to tear down the read-only creator role. See creator-teardown/.
 create_workspace_creator_role = true
 
+# Break-glass Owner group for the service project (removes the auto-granted Foundation-SA
+# Owner). A human group, never an SA, never empty.
+project_owners = ["group:gcp-breakglass@example.com"]
+
+# Dedicated node SA (no project roles) for cluster VMs; the Cloud IAM SA (step 2.5) that gets
+# serviceAccountAdmin on it (resource-scoped) to bind the workspace SA's actAs.
+node_sa_account_id = "databricks-node-sa"
+cloud_iam_sa       = "cloud-iam-automation@example-service-project.iam.gserviceaccount.com"
+
 vpc_network_project_id = "example-shared-vpc-host" # EXISTING host project
 
 service_project_id   = "example-databricks-svc" # created here (must be globally unique)

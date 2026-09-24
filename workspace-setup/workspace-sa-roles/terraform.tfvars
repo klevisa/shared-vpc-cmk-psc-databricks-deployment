@@ -10,9 +10,9 @@ poc_expiry = "2026-12-31T00:00:00Z"
 gcp_workspace_sa = "db-1234567890@prod-gcp-us-central1.iam.gserviceaccount.com"
 workspace_id     = "1234567890"
 
-# The compute/node SA the workspace SA impersonates as the VM identity — actAs is scoped to
-# THIS SA only. Default = the service project's GCE default SA (step 2.1); replace the number.
-compute_sa_email = "111111111111-compute@developer.gserviceaccount.com"
+# The dedicated node SA (no project roles) the workspace SA impersonates as the VM identity —
+# actAs is scoped to THIS SA only. From step 2.1 output node_sa_email.
+compute_sa_email = "databricks-node-sa@example-service-project.iam.gserviceaccount.com"
 
 # Extra cluster-attached SAs the workspace SA must actAs (added per phase, e.g. Phase 5's
 # keyless benchmark collector SA). Default none; re-apply with the SA appended, e.g.:

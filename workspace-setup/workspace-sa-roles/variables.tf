@@ -1,7 +1,7 @@
 # ---- Identity ----
 variable "google_service_account_email" {
   type        = string
-  description = "CLOUD IAM team's automation SA (impersonated). Standing roles on the SERVICE project: roles/iam.roleAdmin (create custom roles) + roles/resourcemanager.projectIamAdmin (grant them). Runner needs iam.serviceAccountTokenCreator on it."
+  description = "CLOUD IAM team's automation SA (impersonated). Standing roles on the SERVICE project: roles/iam.roleAdmin (create custom roles) + roles/resourcemanager.projectIamAdmin (grant them); plus serviceAccountAdmin on the compute SA RESOURCE, granted in step 2.1 (node-sa.tf) — NOT project-wide. Runner needs iam.serviceAccountTokenCreator on it."
 }
 variable "google_project_name" {
   type        = string
@@ -37,7 +37,7 @@ variable "workspace_id" {
 # Default = service project's GCE default SA (<number>-compute@developer.gserviceaccount.com).
 variable "compute_sa_email" {
   type        = string
-  description = "Compute/node SA email the workspace SA sets as the cluster VM identity (actAs granted on this SA only). No serviceAccount: prefix."
+  description = "Compute/node SA email the workspace SA sets as the cluster VM identity (actAs granted on this SA only). From step 2.1 output node_sa_email — the dedicated node SA with no project roles. No serviceAccount: prefix."
 }
 
 # Additional cluster-attached SAs the workspace SA must actAs, beyond the compute SA — e.g.

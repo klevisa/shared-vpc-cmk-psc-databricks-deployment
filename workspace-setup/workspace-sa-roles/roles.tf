@@ -15,8 +15,9 @@
 # Permission lists source of truth (re-verify in review):
 #   https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/sa-permissions
 #
-# NOTE: this step's SA needs roles/iam.roleAdmin + roles/resourcemanager.projectIamAdmin +
-# roles/iam.serviceAccountAdmin (last one to set IAM on the compute SA) on the SERVICE project.
+# NOTE: this step's SA needs roles/iam.roleAdmin + roles/resourcemanager.projectIamAdmin on the
+# SERVICE project. It also needs to set IAM on the compute SA (for the actAs binding) — but that
+# is granted on the SA RESOURCE in step 2.1 (node-sa.tf), so NO project-wide serviceAccountAdmin.
 # -----------------------------------------------------------------------------
 
 resource "google_project_iam_custom_role" "project_role" {

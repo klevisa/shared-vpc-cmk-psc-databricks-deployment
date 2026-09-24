@@ -95,7 +95,7 @@ on all three.
 
 ```mermaid
 flowchart TB
-    P0["2.1 · Create service project<br/>service project · APIs · Shared VPC · GCS agent · creator role (service)"]
+    P0["2.1 · Create service project<br/>service project · APIs · Shared VPC · GCS agent · node SA · creator role (service)"]
     P1["2.2 · Create network<br/>VPC · subnets · PSC endpoints PENDING · DNS zone · creator role (host)"]
     P2["2.3 · CMEK<br/>CMEK key + agent grants"]
     P3["2.4 · Create the workspace (PHASE 1)<br/>register endpoints → ACCEPTED · workspace PROVISIONING · returns SA"]

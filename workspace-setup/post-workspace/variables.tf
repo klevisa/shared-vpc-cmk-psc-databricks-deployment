@@ -10,6 +10,17 @@ variable "vpc_network_project_id" {
   description = "From network output host_project."
 }
 variable "google_region" { type = string }
+
+# ---- PoC time-box ----
+# RFC3339 UTC timestamp after which the workspace-SA network grant auto-expires, via a
+# request.time IAM condition. Set it to the PoC end date. Backstops teardown; does not
+# replace it. (Not applied to the read-only creator roles/SA — those are stripped outright
+# right after finalize; see workspace-setup/creator-teardown/.)
+variable "poc_expiry" {
+  type        = string
+  description = "RFC3339 UTC timestamp after which this config's PoC IAM grants auto-expire (request.time IAM condition), e.g. \"2026-12-31T00:00:00Z\"."
+}
+
 variable "node_subnet_name" {
   type        = string
   description = "From network output node_subnet_name."

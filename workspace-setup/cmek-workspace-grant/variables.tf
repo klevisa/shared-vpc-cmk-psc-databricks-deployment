@@ -12,6 +12,15 @@ variable "google_region" {
   default = "us-central1"
 }
 
+# ---- PoC time-box ----
+# RFC3339 UTC timestamp after which the workspace-SA MANAGED_SERVICES CMEK grant
+# auto-expires, via a request.time IAM condition. Set it to the PoC end date. Backstops
+# teardown; does not replace it.
+variable "poc_expiry" {
+  type        = string
+  description = "RFC3339 UTC timestamp after which this config's PoC IAM grants auto-expire (request.time IAM condition), e.g. \"2026-12-31T00:00:00Z\"."
+}
+
 # ---- Handoff from step 2.3 (cmek) ----
 variable "cmek_key_id" {
   type        = string

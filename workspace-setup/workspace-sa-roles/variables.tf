@@ -12,6 +12,17 @@ variable "google_region" {
   default = "us-central1"
 }
 
+# ---- PoC time-box ----
+# RFC3339 UTC timestamp after which this config's PoC IAM grants auto-expire, via a
+# request.time IAM condition. Set it to the PoC end date. This is the security-review
+# time-boxing backstop — it does NOT replace teardown, it ensures the grant lapses even
+# if teardown slips. (Not applied to the read-only creator roles/SA — those are stripped
+# outright right after finalize; see workspace-setup/creator-teardown/.)
+variable "poc_expiry" {
+  type        = string
+  description = "RFC3339 UTC timestamp after which this config's PoC IAM grants auto-expire (request.time IAM condition), e.g. \"2026-12-31T00:00:00Z\"."
+}
+
 # ---- Handoff from step 2.4 (workspace, PHASE 1) ----
 variable "gcp_workspace_sa" {
   type        = string

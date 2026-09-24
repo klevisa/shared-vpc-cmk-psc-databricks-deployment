@@ -2,6 +2,10 @@
 # Catalog setup — ILLUSTRATIVE values. Runs after the workspace exists.
 # ============================================================================
 
+# PoC end date — the read-only + read-write bucket IAM grants auto-expire after this
+# (request.time). Requires uniform bucket-level access on each target bucket.
+poc_expiry = "2026-12-31T00:00:00Z"
+
 # ---- Databricks identities ----
 databricks_account_id = "00000000-0000-0000-0000-000000000000"
 account_admin_sa      = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com" # the account admin (from prereqs)
@@ -14,9 +18,9 @@ metastore_id  = "11111111-2222-3333-4444-555555555555"
 workspace_url = "https://1234567890123456.7.gcp.databricks.com"
 
 # ---- GCP team identities (set to the same value if one team owns several) ----
-perimeter_sa        = "vpcsc-admin@example-security.iam.gserviceaccount.com"            # Cloud/Network Security
+perimeter_sa        = "vpcsc-admin@example-security.iam.gserviceaccount.com"          # Cloud/Network Security
 data_bucket_sa      = "data-bucket-admin@example-source-data.iam.gserviceaccount.com" # owner of the source bucket
-analytics_bucket_sa = "storage-admin@example-databricks-svc.iam.gserviceaccount.com"    # Data Platform
+analytics_bucket_sa = "storage-admin@example-databricks-svc.iam.gserviceaccount.com"  # Data Platform
 
 # ---- VPC-SC (your existing perimeter) ----
 perimeter_name      = "accessPolicies/123456789012/servicePerimeters/example_perimeter"

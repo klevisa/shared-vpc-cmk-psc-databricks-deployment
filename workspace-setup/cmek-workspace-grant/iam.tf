@@ -19,4 +19,14 @@ resource "google_kms_crypto_key_iam_member" "workspace_sa_managed_services" {
   crypto_key_id = var.cmek_key_id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:${var.gcp_workspace_sa}"
+
+  # PoC time-box: self-expires at var.poc_expiry via a request.time IAM condition. NOTE:
+  # revoking this grant renders CMEK-encrypted managed-services data (notebooks, results,
+  # secrets, SQL history) unreadable — that is the intended teardown effect, but make sure
+  # poc_expiry is the deliberate PoC end date, not an accidentally-early value.
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }

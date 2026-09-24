@@ -17,7 +17,12 @@
 # to the Foundation SA's standing roles (it is not implied by resourcemanager.projectIamAdmin).
 # -----------------------------------------------------------------------------
 
+# Creation-only: this role is needed ONLY for step 2.4's read-only validation. Once the
+# workspace is RUNNING (step 2.8) nothing re-reads the project as the creator SA, so it is
+# torn down in the "End state" — set create_workspace_creator_role = false and re-apply, and
+# Terraform removes the binding + the custom role. See workspace-setup/creator-teardown/.
 resource "google_project_iam_custom_role" "ws_creator_service" {
+  count       = var.create_workspace_creator_role ? 1 : 0
   project     = google_project.service.project_id
   role_id     = "lpw.databricks.workspace.creator.service.v2"
   title       = "Databricks LPW workspace creator (service project)"
@@ -36,7 +41,8 @@ resource "google_project_iam_custom_role" "ws_creator_service" {
 }
 
 resource "google_project_iam_member" "ws_creator_service" {
+  count   = var.create_workspace_creator_role ? 1 : 0
   project = google_project.service.project_id
-  role    = google_project_iam_custom_role.ws_creator_service.id
+  role    = google_project_iam_custom_role.ws_creator_service[0].id
   member  = "serviceAccount:${var.databricks_account_admin_sa}"
 }

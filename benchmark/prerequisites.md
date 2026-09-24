@@ -75,6 +75,21 @@ lives in the Databricks secret scope; the Databricks SP that needs it reads it v
 | `gcp-dataproc-runner` | `bench-runner` | **project-level** in the Dataproc project: `dataproc.clusters.create` + `dataproc.clusters.delete` (ephemeral per-run cluster) + `dataproc.jobs.create` + `dataproc.jobs.setIamPolicy`; plus `iam.serviceAccounts.actAs` on the cluster's VM service account |
 | `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query + `dataproc.jobs.get` (granted per-job by the runner — §4) |
 
+> **PoC time-box (`request.time`).** These are PoC-lifetime grants, so add a time-bound IAM
+> condition to each project-level binding — the gcloud/CLI analogue of the `poc_expiry`
+> `request.time` conditions the Terraform configs use (`workspace-sa-roles/`, `cmek/`,
+> `cmek-workspace-grant/`, `post-workspace/`, `data-access/`). Example:
+> ```bash
+> gcloud projects add-iam-policy-binding <DATAPROC_PROJECT> \
+>   --member="serviceAccount:gcp-dataproc-runner@<proj>.iam.gserviceaccount.com" \
+>   --role="roles/dataproc.editor" \
+>   --condition='expression=request.time < timestamp("2026-12-31T00:00:00Z"),title=poc-expiry'
+> ```
+> The grant then lapses on the PoC end date even if teardown slips. The **SA keys** are a
+> separate, higher-priority concern: user-managed keys don't expire — rotate them (org policy
+> `constraints/iam.serviceAccountKeyExpiryHours`) or, better, go keyless, and at teardown
+> delete the keys **and** the SAs, not just the secret scopes.
+
 Store each key in its **own scope** (one per SA):
 ```bash
 databricks secrets create-scope benchmark_runner

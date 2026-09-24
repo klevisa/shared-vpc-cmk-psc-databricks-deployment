@@ -8,7 +8,7 @@
 ingress that admits serverless, and the serverless egress controls.
 
 Serverless does **not** run in the Shared VPC — it runs in Databricks-owned GCP projects — so
-the classic networking (subnets, PSC backend, NAT) doesn't govern it. Two account-level
+the classic networking (subnets, PSC backend) doesn't govern it. Two account-level
 controls do: a **Network Connectivity Config (NCC)** and a **serverless egress network
 policy**. (The Photon benchmark runs on classic job clusters, so serverless is a workspace
 capability here, not part of the measurement path.)

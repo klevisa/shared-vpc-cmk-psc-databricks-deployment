@@ -33,22 +33,11 @@ resource "google_compute_subnetwork" "pe_subnet" {
   purpose       = "PRIVATE"
 }
 
-# ---- Egress for no-external-IP nodes ----
-resource "google_compute_router" "router" {
-  name    = "${var.vpc_name}-router"
-  project = var.vpc_network_project_id
-  region  = var.google_region
-  network = google_compute_network.vpc.id
-}
-
-resource "google_compute_router_nat" "nat" {
-  name                               = "${var.vpc_name}-nat"
-  project                            = var.vpc_network_project_id
-  router                             = google_compute_router.router.name
-  region                             = var.google_region
-  nat_ip_allocate_option             = "AUTO_ONLY"
-  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
-}
+# ---- Egress ----
+# No internet egress by default. NPIP nodes reach Google APIs (GCS, KMS) via Private
+# Google Access and the Databricks control plane over the backend PSC endpoint, so the
+# private path needs none. If clusters must pull PUBLIC packages (PyPI/npm/Maven), the
+# customer can add a Cloud Router + NAT here, or point installers at private mirrors.
 
 # ---- Firewall ----
 resource "google_compute_firewall" "allow_internal" {

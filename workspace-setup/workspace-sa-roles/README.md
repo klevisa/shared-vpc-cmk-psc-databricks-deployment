@@ -71,8 +71,8 @@ three are applied, run step 2.8 (`workspace/` with `finalize=true`) to bring the
 
 > **Aligned with the vendor v2 role — resource-scoped `actAs`.** The current
 > [least-privilege operator roles](https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/sa-permissions#lpw-operator-roles)
-> list `iam.serviceAccounts.actAs` as the only SA permission in the project role (no
-> `getAccessToken`/`getOpenIdToken`), and the doc explicitly permits granting `actAs` per-SA at the
+> list `iam.serviceAccounts.actAs` as the only SA permission in the project role, and the doc
+> explicitly permits granting `actAs` per-SA at the
 > resource level instead of project-wide: *"If `iam.serviceAccounts.actAs` is not granted at the
 > project level, you must grant it to the workspace service account for each individual service
 > account that you intend to attach."* This config takes that tighter option — `actAs` on the

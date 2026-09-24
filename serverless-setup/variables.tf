@@ -29,11 +29,11 @@ variable "ncc_name" {
 # ---- Optional serverless egress lockdown ----
 variable "restrict_serverless_egress" {
   type    = bool
-  default = false
-  # OFF by default: the workspace uses the account default policy (FULL_ACCESS) and
-  # serverless has open outbound. ON: create a RESTRICTED_ACCESS policy and point the
-  # workspace at it. Start in DRY_RUN (see egress_enforcement_mode) to observe first.
-  description = "Whether to create + attach a restricted serverless egress network policy. false = open egress (default policy)."
+  default = true
+  # ON by default: create a RESTRICTED_ACCESS policy and point the workspace at it so
+  # serverless has NO internet egress. Set false to fall back to the account default
+  # policy (FULL_ACCESS / open outbound).
+  description = "Whether to create + attach a restricted serverless egress network policy. true = no internet egress."
 }
 variable "network_policy_id" {
   type        = string
@@ -42,12 +42,12 @@ variable "network_policy_id" {
 }
 variable "egress_enforcement_mode" {
   type    = string
-  default = "DRY_RUN"
-  # DRY_RUN logs egress-policy violations but blocks nothing — the safe way to roll this
-  # out: watch what serverless actually needs, complete the allowlist, THEN switch to
-  # ENFORCED. Flipping straight to ENFORCED can break jobs/model-serving that reach the
-  # internet or storage you haven't allowlisted yet.
-  description = "DRY_RUN (log only) or ENFORCED (block). Start with DRY_RUN."
+  default = "ENFORCED"
+  # ENFORCED blocks egress not on the allowlist — with an empty internet allowlist that
+  # means serverless cannot reach the internet. DRY_RUN only logs violations; use it
+  # temporarily to observe what serverless needs (and allowlist required GCS storage
+  # destinations, see README) before/after enforcing.
+  description = "DRY_RUN (log only) or ENFORCED (block). ENFORCED = serverless blocked from the internet."
   validation {
     condition     = contains(["DRY_RUN", "ENFORCED"], var.egress_enforcement_mode)
     error_message = "egress_enforcement_mode must be DRY_RUN or ENFORCED."

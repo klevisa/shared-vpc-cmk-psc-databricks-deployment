@@ -1,11 +1,11 @@
 # -----------------------------------------------------------------------------
-# OPTIONAL serverless egress lockdown (off by default).
+# Serverless egress lockdown — serverless has NO internet egress.
 #
-# When restrict_serverless_egress = true, create a RESTRICTED_ACCESS network policy and
-# point the workspace at it. Defaults to DRY_RUN so violations are logged, not blocked —
-# roll out safely, then flip egress_enforcement_mode to ENFORCED once the allowlist is
-# complete. NOTE: before ENFORCED, also allowlist your GCS buckets as storage
-# destinations (not modeled here — see the README) or serverless loses catalog access.
+# Creates a RESTRICTED_ACCESS network policy (ENFORCED, empty internet allowlist) and points
+# the workspace at it, so serverless compute cannot reach the internet. NOTE: if serverless
+# workloads need UC data on GCS, allowlist those buckets as STORAGE destinations (not modeled
+# here — see the README); that is private access, not internet egress. To observe before
+# enforcing, temporarily set egress_enforcement_mode = DRY_RUN.
 # -----------------------------------------------------------------------------
 
 resource "databricks_account_network_policy" "serverless_egress" {

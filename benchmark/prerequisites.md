@@ -108,20 +108,23 @@ Dataproc permission at all.
 |---|---|---|
 | `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query. **No `dataproc.*`** — runtime is captured by Airflow. |
 
-> **PoC time-box (`request.time`).** These are PoC-lifetime grants, so add a time-bound IAM
-> condition to the collector SA's project bindings — the gcloud analogue of the `poc_expiry`
-> `request.time` conditions the Terraform configs use (`workspace-sa-roles/`, `cmek/`,
-> `cmek-workspace-grant/`, `post-workspace/`, `data-access/`). Example:
-> ```bash
-> gcloud projects add-iam-policy-binding <BILLING_PROJECT> \
->   --member="serviceAccount:gcp-data-collector@<proj>.iam.gserviceaccount.com" \
->   --role="roles/bigquery.jobUser" \
->   --condition='expression=request.time < timestamp("2026-12-31T00:00:00Z"),title=poc-expiry'
-> ```
-> The grant then lapses on the PoC end date even if teardown slips. The **SA key** is a separate,
-> higher-priority concern: user-managed keys don't expire — rotate it (org policy
-> `constraints/iam.serviceAccountKeyExpiryHours`) or go keyless, and at teardown delete the key
-> **and** the SA, not just the secret scope.
+> **PoC time-box + key expiry.** Use the same `poc_expiry` as every other GCP identity in this PoC
+> (`2026-12-31T00:00:00Z` — the shared `request.time` end date in `workspace-sa-roles/`, `cmek/`,
+> `cmek-workspace-grant/`, `post-workspace/`, `data-access/`). A user-managed key can't carry a
+> native expiry timestamp the way an IAM binding can, so time-box it in two layers:
+>
+> 1. **Time-box the grant** — condition the collector SA's `bigquery.jobUser` binding on
+>    `request.time`. `jobUser` is required to run *any* query, so this alone makes the key **inert**
+>    at `poc_expiry` even if it lingers in the secret scope:
+>    ```bash
+>    gcloud projects add-iam-policy-binding <BILLING_PROJECT> \
+>      --member="serviceAccount:gcp-data-collector@<proj>.iam.gserviceaccount.com" \
+>      --role="roles/bigquery.jobUser" \
+>      --condition='expression=request.time < timestamp("2026-12-31T00:00:00Z"),title=poc-expiry'
+>    ```
+> 2. **Bound the key material** — cap the key's lifetime with the org policy
+>    `constraints/iam.serviceAccountKeyExpiryHours` (set to the PoC window), or go keyless (workload
+>    identity federation). At teardown, delete the **key and the SA**, not just the secret scope.
 
 Store its key in a secret scope:
 ```bash

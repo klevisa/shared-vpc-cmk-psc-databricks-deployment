@@ -41,11 +41,11 @@ The automation SP **owns** the catalogs it creates. The metastore *admin* is sep
 
 ## Privileges needed
 
-Each identity has its own aliased provider. The account-admin and the three GCP SAs are **impersonated** (each runner needs `roles/iam.serviceAccountTokenCreator` on them); the **catalog automation SP** authenticates with its **OAuth M2M secret** — no impersonation:
+Each identity has its own aliased provider. The two Databricks SPs (`account_admin_sp`, `catalog_automation_sp`) authenticate with their **OAuth M2M secrets**; the three GCP SAs are **impersonated** (each runner needs `roles/iam.serviceAccountTokenCreator` on them):
 
 | Identity | Does | Team | Rights |
 |---|---|---|---|
-| `account_admin_sa` | grants the automation SP scoped `CREATE_*` | (from prereqs) | Databricks **account admin** |
+| `account_admin_sp` | grants the automation SP scoped `CREATE_*` | (from prereqs) | Databricks **account admin** SP (OAuth) |
 | `catalog_automation_sp` | creates + owns credentials / locations / catalogs | Data Platform | Databricks SP (OAuth); only the granted `CREATE_*` |
 | `perimeter_sa` | VPC-SC ingress | Cloud / Network Security | `accesscontextmanager.policyAdmin` |
 | `data_bucket_sa` | read-only IAM on the existing data bucket | owner of that bucket's project | bucket IAM admin |
@@ -65,7 +65,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 **✍️ Your decisions this phase:**
 
-- `account_admin_sa` : the account admin (impersonated); `catalog_automation_sp` + `catalog_automation_client_secret` : the automation SP's application id + OAuth secret (source the secret via `TF_VAR_catalog_automation_client_secret`)
+- `account_admin_sp` + `account_admin_sp_client_secret` : the account-admin SP's application id + OAuth secret; `catalog_automation_sp` + `catalog_automation_client_secret` : the automation SP's application id + OAuth secret (source both secrets via `TF_VAR_account_admin_sp_client_secret` / `TF_VAR_catalog_automation_client_secret`)
 - `perimeter_sa` / `data_bucket_sa` / `analytics_bucket_sa` : the three GCP team SAs
 - `analytics_bucket` / `analytics_bucket_project` / `analytics_bucket_location` : the analytics data bucket to create
 - catalog / schema / storage-credential / external-location names (read-only + read-write)

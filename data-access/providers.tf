@@ -3,9 +3,9 @@
 # privilege holds even though it's one config. Each runner needs
 # roles/iam.serviceAccountTokenCreator on the SA it impersonates.
 #
-# Databricks — two identities:
-#   accounts : the ACCOUNT ADMIN (a GCP SA impersonated for the account API) — grants the
-#              catalog automation SP the scoped metastore CREATE privileges.
+# Databricks — two identities (both native Databricks SPs, OAuth M2M — no GCP impersonation):
+#   accounts : the ACCOUNT ADMIN SP — grants the catalog automation SP the scoped metastore
+#              CREATE privileges via the account API.
 #   uc_admin : the CATALOG AUTOMATION SP — a native Databricks service principal (OAuth M2M:
 #              client_id = its application id, client_secret = its OAuth secret). Creates and
 #              owns the storage credentials, external locations, catalogs, schemas against the
@@ -21,10 +21,11 @@
 # workspace endpoint (inside or peered to the VPC).
 
 provider "databricks" {
-  alias                  = "accounts"
-  host                   = "https://accounts.gcp.databricks.com"
-  account_id             = var.databricks_account_id
-  google_service_account = var.account_admin_sa
+  alias         = "accounts"
+  host          = "https://accounts.gcp.databricks.com"
+  account_id    = var.databricks_account_id
+  client_id     = var.account_admin_sp # account-admin SP application id (OAuth M2M)
+  client_secret = var.account_admin_sp_client_secret
 }
 
 provider "databricks" {

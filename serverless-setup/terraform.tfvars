@@ -4,7 +4,9 @@
 
 # ---- Databricks identities ----
 databricks_account_id = "00000000-0000-0000-0000-000000000000"
-account_admin_sa      = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com" # the account admin (from prereqs)
+account_admin_sp      = "00000000-0000-0000-0000-0000000000aa" # account-admin SP application id (OAuth client_id)
+# Source the OAuth secret from env: export TF_VAR_account_admin_sp_client_secret=...
+account_admin_sp_client_secret = "REPLACE_VIA_TF_VAR_ENV"
 
 # ---- from step 2.4 (workspace) ----
 workspace_id      = "1234567890123456"

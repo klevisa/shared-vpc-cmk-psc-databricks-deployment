@@ -1,8 +1,13 @@
 # ---- Databricks identities ----
 variable "databricks_account_id" { type = string }
-variable "account_admin_sa" {
+variable "account_admin_sp" {
   type        = string
-  description = "The Databricks ACCOUNT ADMIN SA (from prereqs). NCC, binding, and the network policy are all account-API objects."
+  description = "Account-admin service principal application id (OAuth M2M client_id). NCC, binding, and the network policy are all account-API objects."
+}
+variable "account_admin_sp_client_secret" {
+  type        = string
+  sensitive   = true
+  description = "OAuth M2M client secret for account_admin_sp. Source via TF_VAR_account_admin_sp_client_secret; do not hard-code."
 }
 
 # ---- Handoff from step 2.4 (workspace) ----

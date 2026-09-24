@@ -44,7 +44,7 @@ storage/compute. Reference: [Create a least-privilege workspace on GCP](https://
 | Step | Config / resources | Team | Standing identity it needs |
 |---|---|---|---|
 | **2.1 · Create service project** | [`service-project/`](service-project/README.md) — create the service project, enable its APIs, attach it to the existing Shared VPC host, provision the GCS service agent, **and define + grant the read-only workspace-creator role on the service project**. The **host project already exists** | **Cloud Foundation / Landing Zone** | org/folder: `resourcemanager.projectCreator`, `billing.user`, `compute.xpnAdmin`, `resourcemanager.projectIamAdmin`, `serviceusage.serviceUsageAdmin`, **`iam.roleAdmin`** |
-| **2.2 · Create network** | [`network/`](network/README.md) — VPC, subnets, firewall, router, NAT, PSC IPs + forwarding rules, DNS **zone**, static service-agent subnet grants, **and the read-only workspace-creator role on the host project** | **Network Engineering** | `compute.networkAdmin` + `compute.securityAdmin` + `dns.admin` + **`iam.roleAdmin`** on **HOST** |
+| **2.2 · Create network** | [`network/`](network/README.md) — VPC, subnets, firewall, PSC IPs + forwarding rules, DNS **zone**, static service-agent subnet grants, **and the read-only workspace-creator role on the host project** | **Network Engineering** | `compute.networkAdmin` + `compute.securityAdmin` + `dns.admin` + **`iam.roleAdmin`** on **HOST** |
 | **2.3 · CMEK** | [`cmek/`](cmek/README.md) — keyring, key, grants to service-project compute-system + gs-project-accounts agents | **Cloud Security / KMS** | `cloudkms.admin` on **SERVICE** |
 | **2.4 · Create the workspace (PHASE 1)** | [`workspace/`](workspace/README.md) with `finalize=false` — VPC-endpoint regs, private access settings, network config, CMEK registration, workspace created **paused in PROVISIONING** | **Data / Databricks Platform** | Databricks **account admin** + the read-only creator roles from 2.1/2.2 (no other GCP roles) |
 | **2.5 · Workspace SA operator roles** | [`workspace-sa-roles/`](workspace-sa-roles/README.md) — define + grant the **project role** and the workspace-scoped **resource role** (`storage.buckets.create`, `compute.instances.create`, …) to the workspace SA on the **service** project | **Cloud IAM** | `iam.roleAdmin` + `resourcemanager.projectIamAdmin` on **SERVICE** |
@@ -140,7 +140,7 @@ role on the service project** to the creator SA (`databricks_account_admin_sa`).
 
 ### 2.2 — Network Engineering → [`network/`](network/README.md)  *(parallel with step 2.3)*
 
-Builds the network inside the host project (VPC, subnets, firewall, router+NAT, two PSC endpoints
+Builds the network inside the host project (VPC, subnets, firewall, two PSC endpoints
 [**PENDING**], private DNS zone, static service-agent subnet grants) and **defines + grants the
 read-only workspace-creator role on the host project** to the creator SA.
 

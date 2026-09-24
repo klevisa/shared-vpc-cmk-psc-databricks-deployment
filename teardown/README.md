@@ -37,7 +37,7 @@ plus any account-level or GCP-console step. Run **top to bottom**.
 | **T4** | **Workspace-SA operator grants (2.5–2.7)** | `terraform destroy` `cmek-workspace-grant/`, `post-workspace/`, `workspace-sa-roles/` → removes the CMEK grant, the network role + binding, the project/resource roles, and the compute-SA + collector-SA `actAs` bindings | Security + Net Sec + Cloud IAM |
 | **T5** | **The workspace (2.4/2.8)** | `terraform destroy workspace/` → deletes the workspace (**releases the workspace SA + its buckets/VMs**), PSC regs, private-access settings, network config, CMEK registration, metastore assignment | Data Platform |
 | **T6** | **CMEK (2.3)** | `terraform destroy cmek/` → removes the storage-agent grants; **schedule the key versions for destruction** (`gcloud kms keys versions destroy`), delete the keyring once destroyed | Security / KMS |
-| **T7** | **Network (2.2)** | `terraform destroy network/` → PSC endpoints/forwarding rules, DNS records + zone, firewall, router/NAT, subnets, VPC; remove the STS VPC-SC ingress/egress rule if still present | Network Eng |
+| **T7** | **Network (2.2)** | `terraform destroy network/` → PSC endpoints/forwarding rules, DNS records + zone, firewall, subnets, VPC; remove the STS VPC-SC ingress/egress rule if still present | Network Eng |
 | **T8** | **Service project (2.1)** | `terraform destroy service-project/` → detach from the Shared VPC host, remove APIs; delete/shut down the service project | Cloud Foundation |
 | **T9** | **Account (1)** | Revoke/delete the **account-admin SP** (all account-API work is done). The creator SA is already gone (2.9). Metastore: keep if region-shared, else delete. Databricks account/subscription: keep if org-wide | Databricks account admin |
 

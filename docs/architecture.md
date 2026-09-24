@@ -62,7 +62,7 @@ inside the VPC everything resolves to `10.10.x` and never leaves the private pat
 | Concern | Project | Resources | Phase |
 |---|---|---|---|
 | Foundation | **Host + Service** | service project, API enablement, Shared VPC host+attach, GCS service agent | 0 |
-| Network | **Host** | VPC, node + psc subnets, firewall, router/NAT, PSC IPs + forwarding rules, private DNS zone | 1 |
+| Network | **Host** | VPC, node + psc subnets, firewall, PSC IPs + forwarding rules, private DNS zone | 1 |
 | CMEK | **Service** | CMEK key + storage-agent grants | 2 |
 | Account objects | **Account** | 2 VPC endpoints, private access settings, network config, CMEK registration, workspace (created paused, then finalized) | 3 |
 | Workspace-creator roles | **Host + Service** | read-only creator custom roles granted to the creator SA (so it can validate settings during creation) | 1–2 |

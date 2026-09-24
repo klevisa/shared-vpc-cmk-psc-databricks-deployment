@@ -8,7 +8,7 @@
 ingress that admits serverless, and the serverless egress controls.
 
 Serverless does **not** run in the Shared VPC — it runs in Databricks-owned GCP projects — so
-the classic networking (subnets, PSC backend, NAT) doesn't govern it. Two account-level
+the classic networking (subnets, PSC backend) doesn't govern it. Two account-level
 controls do: a **Network Connectivity Config (NCC)** and a **serverless egress network
 policy**. (The Photon benchmark runs on classic job clusters, so serverless is a workspace
 capability here, not part of the measurement path.)
@@ -25,7 +25,7 @@ capability here, not part of the measurement path.)
 
 ## 4.2 · Firewall rules for serverless
 
-- create a `RESTRICTED_ACCESS` serverless egress **network policy** (allowed FQDNs you specify), defaulting to **`DRY_RUN`** so violations are logged, not blocked — roll out safely, then flip to `ENFORCED`
+- create a `RESTRICTED_ACCESS` serverless egress **network policy**, `ENFORCED` with an **empty internet allowlist**, so serverless has **no internet egress** (see the rollout note below to observe in `DRY_RUN` first)
 - **allowlist Databricks' serverless-compute outbound IPs on your firewall** — see the automation note below
 
 > **You must automate the serverless outbound-IP allowlist.** Databricks publishes the
@@ -74,8 +74,8 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 - `account_admin_sp` + `account_admin_sp_client_secret` : the account-admin SP application id + OAuth secret (source the secret via `TF_VAR_account_admin_sp_client_secret`)
 - `ncc_name` : a name for the Network Connectivity Config
-- `restrict_serverless_egress` : `false` (open egress, default) or `true` (locked down)
-- `network_policy_id` / `egress_enforcement_mode` / `allowed_internet_destinations` : only when locking egress down — start `DRY_RUN`
+- `restrict_serverless_egress` : `true` (locked down — no internet egress, default) or `false` (account default / open egress)
+- `network_policy_id` / `egress_enforcement_mode` (default `ENFORCED`) / `allowed_internet_destinations` (default empty = no internet)
 
 ## Outputs
 
@@ -99,16 +99,17 @@ Those project numbers are stable; the **IP ranges** are the churny part (see the
 TODO in `workspace-setup/network/network.tf` and
 [`ip-ranges.json`](https://www.databricks.com/networking/v1/ip-ranges.json)).
 
-**Egress lockdown — roll out in DRY_RUN first.** Switching serverless to
-`RESTRICTED_ACCESS` + `ENFORCED` in one step commonly breaks things: jobs that `pip install`
-from public indexes, model-serving build-time dependency fetches, and — importantly — reads
-of your own **GCS buckets**. This config only models `allowed_internet_destinations`
-(FQDNs). Before you flip to `ENFORCED`, you must **also allowlist your GCS buckets as
-storage destinations** on the policy (per the
-[serverless egress-control docs](https://docs.databricks.com/gcp/en/security/network/serverless-network-security/manage-network-policies)) —
-otherwise serverless loses access to the read-only and read-write catalogs. The safe
-sequence: apply with `DRY_RUN`, review the logged violations to learn exactly what
-serverless needs, complete the allowlist, then set `egress_enforcement_mode = "ENFORCED"`.
+**Egress lockdown is ON — serverless has no internet egress.** The policy is
+`RESTRICTED_ACCESS` + `ENFORCED` with an **empty internet allowlist**, so serverless can't
+reach the internet. One caveat: `ENFORCED` also blocks reads of your own **GCS buckets**
+unless they're allowlisted. This config models only `allowed_internet_destinations` (FQDNs),
+**not** storage destinations — so if serverless workloads need the read-only/read-write
+catalogs, **allowlist your GCS buckets as storage destinations** on the policy (per the
+[serverless egress-control docs](https://docs.databricks.com/gcp/en/security/network/serverless-network-security/manage-network-policies));
+that is private access, not internet egress. To de-risk a rollout you can temporarily set
+`egress_enforcement_mode = "DRY_RUN"` to log (not block) violations, learn what serverless
+needs, complete the storage allowlist, then return to `ENFORCED`. Keep
+`allowed_internet_destinations` empty to preserve no-internet egress.
 
 **Provider version.** The NCC binding and network-policy resources require a recent provider;
 this config pins `databricks >= 1.116.0`. Confirm the resources apply cleanly on your provider

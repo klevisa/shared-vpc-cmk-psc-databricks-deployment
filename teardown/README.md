@@ -33,7 +33,7 @@ plus any account-level or GCP-console step. Run **top to bottom**.
 |---|---|---|---|
 | **T1** | **Benchmark (5–6)** | `databricks bundle destroy` (jobs + dashboard); `DROP SCHEMA analytics.benchmark CASCADE` + `analytics.workloads`; delete/disable the Airflow DAG and the Composer environment (if PoC-dedicated) + its SA grants; delete the STS transfer jobs + STS service-agent grants on source/`poc_bucket`; **delete `poc_bucket`** (copied input); drop the BigQuery view `poc_cost`; delete the 3 Databricks SPs (`bench-runner`/`collector`/`analyst`) + the Airflow trigger credential; delete `gcp-data-collector`. **No secret scopes to purge — the collector is keyless.** | Data Platform + Airflow/Dataproc |
 | **T2** | **Serverless (4)** | `terraform destroy serverless-setup/` → unbind the NCC, delete the egress network policy; remove the serverless firewall-IP allowlist + its refresh automation | Net Sec + Data Platform |
-| **T3** | **Data access (3)** | Reassign/drop objects owned by the automation SP first (a metastore admin can reassign). `terraform destroy data-access/` → drops both catalogs/schemas/external locations/storage credentials, **revokes the Mail-bucket `objectViewer`+`legacyBucketReader`**, revokes analytics `objectAdmin`, **deletes both VPC-SC ingress rules**, deletes the analytics bucket. Revoke the automation SP's `CREATE_*` grants; delete the automation SP | Data Platform + Net Sec + bucket owners |
+| **T3** | **Data access (3)** | Reassign/drop objects owned by the automation SP first (a metastore admin can reassign). `terraform destroy data-access/` → drops both catalogs/schemas/external locations/storage credentials, **revokes the Mail-bucket `objectViewer`+`legacyBucketReader`**, revokes analytics `objectAdmin`, **deletes both VPC-SC ingress rules** (`databricks-catalog-ro-gcs`, `databricks-catalog-rw-gcs` — see [T3 detail](#t3-detail--vpc-sc-ingress-rules)), deletes the analytics bucket. Revoke the automation SP's `CREATE_*` grants; delete the automation SP | Data Platform + Net Sec + bucket owners |
 | **T4** | **Workspace-SA operator grants (2.5–2.7)** | `terraform destroy` `cmek-workspace-grant/`, `post-workspace/`, `workspace-sa-roles/` → removes the CMEK grant, the network role + binding, the project/resource roles, and the compute-SA + collector-SA `actAs` bindings | Security + Net Sec + Cloud IAM |
 | **T5** | **The workspace (2.4/2.8)** | `terraform destroy workspace/` → deletes the workspace (**releases the workspace SA + its buckets/VMs**), PSC regs, private-access settings, network config, CMEK registration, metastore assignment | Data Platform |
 | **T6** | **CMEK (2.3)** | `terraform destroy cmek/` → removes the storage-agent grants; **schedule the key versions for destruction** (`gcloud kms keys versions destroy`), delete the keyring once destroyed | Security / KMS |
@@ -48,6 +48,84 @@ plus any account-level or GCP-console step. Run **top to bottom**.
 
 ---
 
+## T3 detail — VPC-SC ingress rules
+
+`terraform destroy data-access/` removes both ingress rules. The explicit commands below do the
+same by hand (use them if the perimeter is managed outside this state, or to force/verify removal),
+and the verification applies **either way**.
+
+The two rules `data-access` added to your existing perimeter:
+
+| Title | Identity | Ingress-to |
+|---|---|---|
+| `databricks-catalog-ro-gcs` | the read-only storage-credential SA (`readonly_storage_credential_sa`) | `storage.googleapis.com` → `objects.get` / `objects.list` |
+| `databricks-catalog-rw-gcs` | the read-write storage-credential SA (`readwrite_storage_credential_sa`) | `storage.googleapis.com` → `*` |
+
+`perimeter_name` (from `data-access/terraform.tfvars`) splits into the two flags below:
+`accessPolicies/<POLICY_ID>/servicePerimeters/<PERIMETER_SHORT_NAME>`.
+
+```bash
+POLICY=<POLICY_ID>
+PERIMETER=<PERIMETER_SHORT_NAME>
+RO_SA=<readonly_storage_credential_sa>     # from `terraform output` before destroy
+RW_SA=<readwrite_storage_credential_sa>
+
+# 1) Inspect the current ingress policies to locate the two Databricks rules:
+gcloud access-context-manager perimeters describe "$PERIMETER" \
+  --policy="$POLICY" --format='yaml(status.ingressPolicies)'
+
+# 2) Explicit removal — remove-databricks-ingress.yaml matches exactly what data-access created
+#    (both rules; identities = the two storage-credential SAs, sources = databricks_source_projects):
+gcloud access-context-manager perimeters update "$PERIMETER" \
+  --policy="$POLICY" \
+  --remove-ingress-policies=remove-databricks-ingress.yaml
+# If your gcloud lacks --remove-ingress-policies: describe (step 1), delete the two blocks, and
+# re-apply the remainder with --set-ingress-policies=remaining-ingress.yaml (do NOT --clear-*,
+# which would drop unrelated rules on a shared perimeter).
+```
+
+`remove-databricks-ingress.yaml`:
+```yaml
+- ingressFrom:
+    identities:
+      - serviceAccount:<readonly_storage_credential_sa>
+    sources:
+      - resource: projects/<DATABRICKS_CONTROL_PLANE_PROJECT_NUMBER>
+      - resource: projects/<DATABRICKS_SERVERLESS_PROJECT_NUMBER>
+  ingressTo:
+    resources: [ projects/<PROTECTED_PROJECT_NUMBER> ]
+    operations:
+      - serviceName: storage.googleapis.com
+        methodSelectors:
+          - method: google.storage.objects.get
+          - method: google.storage.objects.list
+- ingressFrom:
+    identities:
+      - serviceAccount:<readwrite_storage_credential_sa>
+    sources:
+      - resource: projects/<DATABRICKS_CONTROL_PLANE_PROJECT_NUMBER>
+      - resource: projects/<DATABRICKS_SERVERLESS_PROJECT_NUMBER>
+  ingressTo:
+    resources: [ projects/<PROTECTED_PROJECT_NUMBER> ]
+    operations:
+      - serviceName: storage.googleapis.com
+        methodSelectors:
+          - method: "*"
+```
+
+**Verify removal** (run regardless of whether Terraform or gcloud did the delete):
+```bash
+# Neither Databricks catalog rule nor either storage-credential SA should appear:
+gcloud access-context-manager perimeters describe "$PERIMETER" \
+  --policy="$POLICY" --format='yaml(status.ingressPolicies)' \
+  | grep -E "databricks-catalog-(ro|rw)-gcs|$RO_SA|$RW_SA" \
+  && echo "STILL PRESENT — investigate" \
+  || echo "OK: no Databricks ingress rules remain"
+```
+Capture the `grep … || echo "OK…"` output as teardown evidence.
+
+---
+
 ## Data-deletion evidence (attach to the ticket)
 
 | Asset | Evidence |
@@ -58,6 +136,7 @@ plus any account-level or GCP-console step. Run **top to bottom**.
 | CMEK key | `gcloud kms keys versions list` showing `DESTROY_SCHEDULED` + timestamp (renders CMEK-encrypted managed-services data unrecoverable) |
 | Source / Mail data bucket | never modified — confirm the external location was `read_only=true` and no export jobs ran (`system.access.audit`) |
 | UC catalogs | `DROP CATALOG … CASCADE` confirmation |
+| VPC-SC ingress rules | the [T3](#t3-detail--vpc-sc-ingress-rules) verify output: `OK: no Databricks ingress rules remain` (`databricks-catalog-ro-gcs` / `-rw-gcs` gone) |
 | Audit trail | UC account-level system table — survives workspace deletion; export only if the metastore is deleted (T9) |
 
 ## What stays

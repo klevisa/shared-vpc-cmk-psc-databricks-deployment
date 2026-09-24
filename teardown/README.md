@@ -14,15 +14,16 @@ plus any account-level or GCP-console step. Run **top to bottom**.
 > not repeated here. See [`workspace-setup/creator-teardown/`](../workspace-setup/creator-teardown/README.md).
 
 > **Time-boxing backstops this.** Every PoC-lifetime IAM grant carries a `poc_expiry`
-> `request.time` condition, so it self-expires on the PoC end date even if a step below is missed.
+> `request.time` condition, so it self-expires on the PoC end date regardless.
 
 ---
 
 ## Pre-flight
 
 - `terraform state list` in each config; note the workspace id, workspace SA, compute SA, metastore id, bucket names, CMEK key id, catalog names, and SP application ids.
-- Export `system.access.audit` for the PoC window (before the workspace goes).
 - Confirm nothing in the analytics bucket must be preserved.
+
+> `system.access.audit` is a Unity Catalog **account-level** system table, not workspace state — it survives workspace deletion. Export it only before deleting the **metastore** (T9), and mind system-table retention (~365 days).
 
 ---
 
@@ -57,7 +58,7 @@ plus any account-level or GCP-console step. Run **top to bottom**.
 | CMEK key | `gcloud kms keys versions list` showing `DESTROY_SCHEDULED` + timestamp (renders CMEK-encrypted managed-services data unrecoverable) |
 | Source / Mail data bucket | never modified — confirm the external location was `read_only=true` and no export jobs ran (`system.access.audit`) |
 | UC catalogs | `DROP CATALOG … CASCADE` confirmation |
-| Audit trail | `system.access.audit` exported for the PoC window (pre-flight) |
+| Audit trail | UC account-level system table — survives workspace deletion; export only if the metastore is deleted (T9) |
 
 ## What stays
 

@@ -42,8 +42,9 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 
 | Step | Prereqs | Teams | Privileges | Output |
 |---|---|---|---|---|
-| **1.1 Databricks Account Setup** | None | Databricks + GCP Billing Admin | None | Account; admins (human, create-only `databricks_account_admin_sa`, account-admin SP for automation); regional metastore; system-table schemas enabled |
+| **1.1 Databricks Account Setup** | None | Databricks + GCP Billing Admin | None | Account; admins (human, create-only `databricks_account_admin_sa`, account-admin SP for automation); metastore; system-table schemas enabled |
 | **1.2 IdP Sync** | 1.1 | Databricks + IdP Admin | **Databricks:** account admin · **IdP:** SCIM admin | Identities/groups synced; metastore owner set to a governance group |
+| **1.3 SSO** | 1.2 | Databricks + IdP Admin | **Databricks:** account admin · **IdP:** Okta admin | Account-level single sign-on (SAML/OIDC) validating logins against the IdP |
 
 ## 2. Workspace Setup
 → [`workspace-setup/`](workspace-setup/README.md) — a secure workspace on a Shared VPC (private connectivity + CMEK), built by the platform teams in order.

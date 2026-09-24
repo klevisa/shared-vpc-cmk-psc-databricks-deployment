@@ -3,12 +3,13 @@
 > ← Back to the [PoC playbook](../README.md)
 
 Account-scoped, one-time setup done in the **GCP Marketplace**, the **Databricks account
-console**, and your **IdP** — before the workspace (Phase 2). Two steps:
+console**, and your **IdP** — before the workspace (Phase 2). Three steps:
 
-- **1.1 Databricks Account Setup** — the account, its admins, and the regional metastore.
+- **1.1 Databricks Account Setup** — the account, its admins, and the metastore.
 - **1.2 IdP Sync** — sync your users and groups into the account, then set the metastore owner.
+- **1.3 SSO** — configure account-level single sign-on against your IdP (Okta).
 
-**Owner:** Databricks + GCP Billing Admin (1.1); Databricks + IdP Admin (1.2).
+**Owner:** Databricks + GCP Billing Admin (1.1); Databricks + IdP Admin (1.2, 1.3).
 
 ---
 
@@ -20,7 +21,7 @@ Produces the things the workspace step (2.4) consumes:
 |---|---|
 | Databricks account | `databricks_account_id` |
 | Account-admin automation SA | `databricks_account_admin_sa` |
-| Unity Catalog metastore (regional) | `metastore_id` (required) |
+| Unity Catalog metastore | `metastore_id` (required) |
 
 **a. A Databricks account.** On GCP, subscribe to Databricks through the **GCP Marketplace**;
 the subscription ties the account to your Google organization and billing and provisions the
@@ -101,3 +102,17 @@ evolves, so it belongs to an **IdP-synced human group**, never an individual or 
 SA. Set it in the account console (**Catalog → the metastore → Owner**) or via
 `databricks metastores update <metastore-id> --owner <group>`. Automation identities get scoped
 `CREATE_*` grants in Phase 3 instead — they don't go in this group.
+
+---
+
+## 1.3 · SSO
+
+Configure **account-level single sign-on** so logins are validated against your IdP. It applies
+to the account console and all workspaces (unified login). This is separate from 1.2: SCIM/AIM
+decides *who exists*; SSO decides *whether a login is valid*.
+
+In the account console → **Settings → Security → Single sign-on**, set your IdP's SAML 2.0 / OIDC
+details and (optionally) enforce SSO. → [Set up SSO with Okta (GCP)](https://docs.databricks.com/gcp/en/security/auth/single-sign-on/okta)
+
+**Owner:** Databricks account admin + IdP (Okta) admin. **Produces:** SSO-validated login for the
+account and its workspaces.

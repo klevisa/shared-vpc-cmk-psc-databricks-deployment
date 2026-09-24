@@ -2,43 +2,28 @@
 
 > ← Back to the [PoC playbook](../README.md) · [Benchmark](README.md)
 
-The benchmark run is orchestrated by **Airflow** and measured by a single **cost collector**,
-but the **cost** numbers depend on a few GCP-side things and a small set of principals
-existing first. These are one-time setups, mostly owned by the cloud/billing team.
-
-> **What changed from the single-region design.** We no longer submit the Dataproc jobs.
-> Yahoo's Dataproc jobs run **in the background in us-east5**; the Databricks PoC runs in
-> **us-east4**. **Airflow** (Cloud Composer, Yahoo-side) senses each Dataproc job finishing,
-> copies its exact input to us-east4, and triggers the Databricks runs. Two consequences ripple
-> through this phase:
-> 1. **There is no `gcp-dataproc-runner` SA and no ephemeral-cluster / per-job `jobs.get` IAM.**
->    We don't create or submit clusters, so the only GCP identity left is the **collector**.
-> 2. **The collector never calls the Dataproc API.** Dataproc **runtime** is captured by Airflow
->    at job-end (it owns the job) and written to the tracking table; the collector only reads the
->    **one scoped BigQuery view**. That is the whole point of "we only need the collector SA."
+The benchmark is orchestrated by **Airflow** and measured by a single **cost collector**. The
+Dataproc jobs run in the background — Airflow senses each one finishing, copies its exact input to
+**`poc_bucket`**, and triggers the Databricks runs. The cost numbers depend on a few GCP-side
+things and a small set of principals existing first. These are one-time setups, mostly owned by the
+cloud/billing team.
 
 ## 1. A BigQuery billing export (standard *or* detailed)
 
-GCP does not expose per-VM cost through an API — it exposes it by **exporting billing data
-to BigQuery**, which must be turned on (it is off by default, and **not retroactive** — it
-only captures usage from the day it's enabled, so it must be on **before** the benchmark runs).
+GCP does not expose per-VM cost through an API — it exposes it by **exporting billing data to
+BigQuery**, which must be turned on (it is off by default, and **not retroactive** — it only
+captures usage from the day it's enabled, so it must be on **before** the benchmark runs).
 
 1. GCP console → **Billing → Billing export → BigQuery export** (or confirm it's already on).
 2. Note the **dataset** the export lands in (e.g. `billing_export`).
 3. **Standard usage cost** (`gcp_billing_export_v1_<BILLING_ACCOUNT_ID>`) is **sufficient** — the
-   `goog-dataproc-*` and our custom labels live in the `labels` array, which is present in the
-   **standard** export (they are *not* `system_labels`, which only carry `compute.googleapis.com/*`
-   keys). You do **not** need the detailed/resource export.
-4. Expect **latency**: rows land hours (up to ~a day) after usage — which is why the
-   collector is **run on demand after the runs settle**.
+   `goog-dataproc-*` and our custom labels live in the `labels` array, present in the standard
+   export (they are *not* `system_labels`, which only carry `compute.googleapis.com/*` keys). You do
+   **not** need the detailed/resource export.
+4. Expect **latency**: rows land hours (up to ~a day) after usage — which is why the collector is
+   **run on demand after the runs settle**.
 
-> **Cross-region, cross-project precondition.** The Dataproc project (**us-east5**) and the
-> Databricks project (**us-east4**) must be on the **same billing account** so both platforms'
-> cost lands in **one** export table — then a single view (and a single collector SA) covers
-> both. If they are on different billing accounts, you need read on both exports (two views).
-> Confirm this with Yahoo **early**.
-
-### Cost attribution works because every VM and the Dataproc fee carry two labels
+### Cost attribution: two labels on both platforms' compute
 
 We stamp **two** labels on **both** platforms' compute, doing three jobs:
 
@@ -52,26 +37,27 @@ We stamp **two** labels on **both** platforms' compute, doing three jobs:
   labels; `run_id` is injected via `{{job.run_id}}` (= `usage_metadata.job_run_id`).
 - **Dataproc** — Airflow labels the **benchmarked cluster** `poc=photon-poc` + `engine=dataproc`
   at creation. A cluster label lands on **both** the Compute Engine VM/PD rows **and** the
-  `Cloud Dataproc` licensing-fee rows (confirmed by GCP's own docs — "filtering billing data to
+  `Cloud Dataproc` licensing-fee rows (confirmed by GCP's docs — "filtering billing data to
   calculate Managed Service for Apache Spark costs" — and by the Dataproc author on
   [SO 51213085](https://stackoverflow.com/questions/51213085)). The auto `goog-dataproc-cluster-uuid`
   is the per-run key.
 
-> **Two must-dos, both learned the hard way:**
-> - **Benchmarked Dataproc runs need an ephemeral, labeled cluster** (one per benchmark run,
->   labeled `poc`+`engine`, auto-deleted on idle). On a **shared** cluster you can neither label
->   "our" cost distinctly nor isolate per-run VM cost — you'd fall back to core-second allocation.
->   Since Airflow orchestrates, ask Yahoo to spin an ephemeral cluster for the benchmarked job.
-> - **The flattened export repeats each cost once per label.** Dataproc stamps *three*
->   `goog-dataproc-*` labels, so a naive `CROSS JOIN UNNEST(labels)` + `SUM(cost)` **triple-counts**.
->   Extract each label as a **scalar subquery** and group on a **single** key (see §2).
+Two requirements follow:
 
-## 2. Create a **scoped, dedup-safe authorized view** over the export
+- **Benchmarked Dataproc runs use an ephemeral, labeled cluster** — one per benchmark run, labeled
+  `poc`+`engine`, auto-deleted on idle. A shared cluster can't be labeled distinctly and its VM cost
+  can't be isolated per run (you'd fall back to core-second allocation). Airflow sets the labels when
+  it creates the cluster.
+- **Extract labels as scalar subqueries and group on a single key** (see §2). The flattened export
+  repeats each cost once per label, and Dataproc stamps three `goog-dataproc-*` labels, so a
+  `CROSS JOIN UNNEST(labels)` + `SUM(cost)` would triple-count.
+
+## 2. Create a scoped, dedup-safe authorized view over the export
 
 Do **not** give the collector SA the whole billing export. Create an
-[authorized view](https://cloud.google.com/bigquery/docs/authorized-views) that pre-filters to
-the benchmark rows (`poc=photon-poc`), splits platform + cost bucket, and — critically —
-extracts labels as **scalar subqueries** so costs are not multiplied by the label count:
+[authorized view](https://cloud.google.com/bigquery/docs/authorized-views) that pre-filters to the
+benchmark rows (`poc=photon-poc`), splits platform + cost bucket, and extracts labels as **scalar
+subqueries** so costs are not multiplied by the label count:
 
 ```sql
 CREATE VIEW `billing-project.benchmark_billing.poc_cost` AS
@@ -99,8 +85,8 @@ Per run this yields the breakdown the dashboard wants:
 - **Databricks** → `compute_vm_pd` (VM + persistent disk); DBU $ is added later from system tables
 
 The **collector SA** is granted read on **only this view** (`bigquery.dataViewer`) plus
-`bigquery.jobUser` to run the query — it never sees the rest of the billing export, and it has
-**no** Dataproc permission at all.
+`bigquery.jobUser` to run the query — it never sees the rest of the billing export, and it has **no**
+Dataproc permission at all.
 
 > **Verify the labels land before relying on it** — coverage can vary by service:
 > ```sql
@@ -111,58 +97,50 @@ The **collector SA** is granted read on **only this view** (`bigquery.dataViewer
 > WHERE (SELECT value FROM UNNEST(labels) WHERE key='poc') = 'photon-poc'
 > GROUP BY 1, 2 ORDER BY 1;
 > ```
-> Confirm a `Cloud Dataproc` row appears with a non-null uuid. If a given account/window shows
-> the licensing SKU **un-labeled**, fall back to the **analytical premium** — Airflow knows the
-> cluster shape + lifetime, so `premium = total_vCPUs × uptime_hrs × ~$0.01` (confirm the rate)
-> is deterministic and reconciled against the view.
+> Confirm a `Cloud Dataproc` row appears with a non-null uuid. If a given window shows the licensing
+> SKU **un-labeled**, fall back to the **analytical premium** — Airflow knows the cluster shape +
+> lifetime, so `premium = total_vCPUs × uptime_hrs × ~$0.01` (confirm the rate) is deterministic and
+> reconciled against the view.
 
-## 3. One GCP service account (the collector)
-
-Down from two — the `gcp-dataproc-runner` SA is **removed** (we don't create/submit clusters).
+## 3. The collector service account
 
 | GCP SA | Read by | GCP access |
 |---|---|---|
 | `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query. **No `dataproc.*`** — runtime is captured by Airflow. |
 
-Store its key in its own scope (one scope, one key — down from two scopes):
+Store its key in a secret scope:
 ```bash
 databricks secrets create-scope benchmark_collector
 databricks secrets put-secret benchmark_collector gcp_data_collector_key --string-value "$(cat data-collector-key.json)"
 ```
 
-> The old `benchmark_runner` scope and the dataproc-runner key are **gone** — `bench-runner`
-> no longer reads any GCP key (it no longer talks to Dataproc).
+## 4. Airflow (Cloud Composer) — orchestration + copy prerequisites
 
-## 4. Airflow (Cloud Composer, Yahoo-side) — orchestration + copy prerequisites
+The DAG, per benchmarked Dataproc job:
 
-Airflow replaces the retired `submit_dataproc` flow. Its DAG, per benchmarked Dataproc job:
-
-1. **senses** the Dataproc job finishing (downstream of Yahoo's `DataprocSubmitJobOperator`, or a
+1. **senses** the Dataproc job finishing (downstream of the `DataprocSubmitJobOperator`, or a
    `DataprocJobSensor`), and **captures its runtime** (`status_history` RUNNING→terminal) — Airflow
    owns the job, so no collector grant is needed;
 2. **captures the exact input** — lists the (closed, immutable) input partition and writes a
    `manifest.csv` (object name + generation + CRC32C + size); computes a **fingerprint**;
-3. **STS copy** us-east5 → us-east4, **manifest-driven**, into a run-scoped prefix
-   `gs://<analytics-bucket>/benchmark/<benchmark_run_id>/`;
+3. **STS copy** into a run-scoped prefix `gs://poc_bucket/benchmark/<benchmark_run_id>/`,
+   **manifest-driven**;
 4. **verify gate** — recompute the fingerprint on the destination; **fail the DAG if it differs**;
 5. **triggers the Databricks runs** (`DatabricksRunNowOperator`) for Photon and Spark, passing the
-   tracking params (`benchmark_run_id`, `dataproc_job_id`, `cluster_uuid`, `dataproc_region`,
-   `dataproc_duration_s`, `input_window`, `manifest_uri`, `fingerprint`, `sts_job_id`).
+   tracking params (`benchmark_run_id`, `dataproc_job_id`, `cluster_uuid`, `dataproc_duration_s`,
+   `input_window`, `manifest_uri`, `fingerprint`, `sts_job_id`).
 
-Composer's service account (Yahoo-side, us-east5) therefore needs:
-- **Dataproc**: read the benchmarked job's status (it ran it) + set `poc`/`engine` labels on the
-  ephemeral benchmark cluster it creates for the run;
-- **GCS**: object read on the source bucket (manifest) and object admin on the destination prefix;
+Composer's service account needs:
+- **Dataproc**: read the benchmarked job's status + set `poc`/`engine` labels on the ephemeral
+  benchmark cluster it creates for the run;
+- **GCS**: object read on the source bucket (manifest) and object admin on `poc_bucket`;
 - **STS**: `storagetransfer.jobs.create` / `.run`; the **STS service agent**
   (`project-<PROJNUM>@storage-transfer-service.iam.gserviceaccount.com`) needs `objectViewer` on
-  source and `objectAdmin` on dest. As this repo stands, **no CMEK grant is needed** — the analytics
-  destination bucket (`data-access/catalog-readwrite.tf`) uses **Google-managed** encryption (the
-  repo's CMEK is for the *Databricks workspace*, not the data buckets). CMEK enters *only if* a bucket
-  in the transfer sets a customer-managed default key: a CMEK dest needs the STS agent granted
-  `cryptoKeyEncrypterDecrypter` to write, a CMEK source needs decrypt to read. **The us-east5 source
-  is Yahoo's — confirm its encryption**; if it's CMEK, grant the STS agent decrypt on *their* key;
+  source and `objectAdmin` on `poc_bucket`. `poc_bucket` uses **Google-managed** encryption, so **no
+  CMEK grant is needed**; CMEK enters only if the **source** bucket sets a customer-managed default
+  key, in which case grant the STS agent `cryptoKeyEncrypterDecrypter` (decrypt) on that key;
 - **VPC-SC**: an ingress/egress rule admitting STS across the perimeter between the source and
-  analytics projects (same class of change as the storage-credential SA in the data-access phase);
+  `poc_bucket` projects (same class of change as the storage-credential SA in the data-access phase);
 - **Databricks**: a connection/credential (PAT or SP OAuth) with `CAN_MANAGE_RUN` on the benchmark
   job, to trigger it.
 
@@ -171,29 +149,29 @@ Composer's service account (Yahoo-side, us-east5) therefore needs:
 
 ## 5. Databricks service principals (runner / collector / analyst)
 
-Three **Databricks** service principals, created once by an **account admin**. People only
-*trigger* (now via Airflow) and *view*. `bench-runner` no longer submits Dataproc.
+Three **Databricks** service principals, created once by an **account admin**. People only *trigger*
+(via Airflow) and *view*.
 
 | SP | Runs | Access |
 |---|---|---|
-| `bench-runner` | the Databricks Photon/Spark workloads (triggered by Airflow); **writes the tracking row** + appends Photon coverage | reads `source_data_ro`, writes `analytics.workloads`, writes `analytics.benchmark.benchmark_runs` (tracking) + `analytics.benchmark.photon_coverage`. **No secret scope** (no GCP key). |
+| `bench-runner` | the Databricks Photon/Spark workloads (triggered by Airflow); writes the tracking row + appends Photon coverage | reads `source_data_ro`, writes `analytics.workloads`, writes `analytics.benchmark.benchmark_runs` (tracking) + `analytics.benchmark.photon_coverage`. Needs no GCP key. |
 | `bench-collector` | the cost collector | writes `analytics.benchmark`, reads system tables (`billing`, `lakeflow`); READ on the `benchmark_collector` scope only |
 | `bench-analyst` | the dashboard | reads `analytics.benchmark` only |
 
 Steps (account admin, then catalog owner):
 
-1. **Create the three SPs** and assign each to the workspace (USER). Put their application ids
-   into `databricks.yml` (`runner_sp` / `collector_sp` / `analyst_sp`) for `run_as` and the
-   dashboard. Give the **Airflow trigger identity** `CAN_MANAGE_RUN` on the benchmark job.
-2. **Runner entitlement** — grant `bench-runner` **allow-cluster-create** (no cluster policies).
-   Set the Databricks job clusters' `custom_tags` to `poc=photon-poc` + `engine` (+ `run_id` via
+1. **Create the three SPs** and assign each to the workspace (USER). Put their application ids into
+   `databricks.yml` (`runner_sp` / `collector_sp` / `analyst_sp`) for `run_as` and the dashboard.
+   Give the **Airflow trigger identity** `CAN_MANAGE_RUN` on the benchmark job.
+2. **Runner entitlement** — grant `bench-runner` **allow-cluster-create** (no cluster policies). Set
+   the Databricks job clusters' `custom_tags` to `poc=photon-poc` + `engine` (+ `run_id` via
    `{{job.run_id}}`) so their VM cost lands in the same scoped view.
 3. **System-table schemas** are enabled on the metastore in **Phase 1**. The collector reads only
    `billing` (DBU + `list_prices`) and `lakeflow` (`job_run_timeline` for Databricks runtime) —
    confirm those two are enabled.
-4. **Run the grants** — as the `analytics` catalog owner, run [`sql/grants.sql`](sql/grants.sql)
-   with each SP's application id substituted for `:runner` / `:collector` / `:analyst`.
-5. **Secret ACL** — just one now:
+4. **Run the grants** — as the `analytics` catalog owner, run [`sql/grants.sql`](sql/grants.sql) with
+   each SP's application id substituted for `:runner` / `:collector` / `:analyst`.
+5. **Secret ACL**:
    ```bash
    databricks secrets put-acl benchmark_collector <bench-collector-app-id> READ
    ```

@@ -24,11 +24,19 @@ resource "databricks_storage_credential" "rw" {
 }
 
 # GCS IAM — read-write, granted to the generated SA on the analytics data bucket.
+# PoC time-box: both bindings self-expire at var.poc_expiry via a request.time IAM
+# condition. The analytics bucket sets uniform_bucket_level_access = true (above), which
+# GCS IAM conditions require.
 resource "google_storage_bucket_iam_member" "rw_admin" {
   provider = google.analytics_bucket
   bucket   = google_storage_bucket.analytics.name
   role     = "roles/storage.objectAdmin"
   member   = "serviceAccount:${databricks_storage_credential.rw.databricks_gcp_service_account[0].email}"
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC write grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }
 
 resource "google_storage_bucket_iam_member" "rw_lister" {
@@ -36,6 +44,11 @@ resource "google_storage_bucket_iam_member" "rw_lister" {
   bucket   = google_storage_bucket.analytics.name
   role     = "roles/storage.legacyBucketReader"
   member   = "serviceAccount:${databricks_storage_credential.rw.databricks_gcp_service_account[0].email}"
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC write grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }
 
 # VPC-SC ingress — let the generated SA reach the analytics bucket over the Storage API

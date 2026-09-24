@@ -10,6 +10,10 @@ google_region                = "us-central1"
 # creator role on the service project here.
 databricks_account_admin_sa = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com"
 
+# Keep true through workspace creation; flip to false and re-apply in the End state
+# (after step 2.8) to tear down the read-only creator role. See creator-teardown/.
+create_workspace_creator_role = true
+
 vpc_network_project_id = "example-shared-vpc-host" # EXISTING host project
 
 service_project_id   = "example-databricks-svc" # created here (must be globally unique)

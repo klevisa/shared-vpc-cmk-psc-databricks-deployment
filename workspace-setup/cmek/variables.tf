@@ -14,5 +14,15 @@ variable "google_region" {
   type    = string
   default = "us-central1"
 }
+
+# ---- PoC time-box ----
+# RFC3339 UTC timestamp after which the CMEK STORAGE-agent grants auto-expire, via a
+# request.time IAM condition. Set it to the PoC end date. Backstops teardown; does not
+# replace it.
+variable "poc_expiry" {
+  type        = string
+  description = "RFC3339 UTC timestamp after which this config's PoC IAM grants auto-expire (request.time IAM condition), e.g. \"2026-12-31T00:00:00Z\"."
+}
+
 variable "kms_keyring_name" { type = string }
 variable "kms_key_name" { type = string }

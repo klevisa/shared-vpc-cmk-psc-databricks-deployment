@@ -29,4 +29,12 @@ resource "google_compute_subnetwork_iam_member" "workspace_sa_network_user" {
   subnetwork = var.node_subnet_name
   role       = google_project_iam_custom_role.lpw_network.id
   member     = "serviceAccount:${var.gcp_workspace_sa}"
+
+  # PoC time-box: self-expires at var.poc_expiry via a request.time IAM condition. After
+  # expiry the workspace SA can no longer use the node subnet, so clusters stop launching.
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }

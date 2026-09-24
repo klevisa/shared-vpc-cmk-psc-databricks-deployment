@@ -94,6 +94,14 @@ resource "google_project_iam_member" "project_role" {
   project = var.google_project_name
   role    = google_project_iam_custom_role.project_role.id
   member  = "serviceAccount:${var.gcp_workspace_sa}"
+
+  # PoC time-box: self-expires at var.poc_expiry via a request.time IAM condition, so the
+  # grant lapses even if teardown slips. Extend/shorten by editing poc_expiry and re-applying.
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }
 
 # Resource role — granted project-wide but SCOPED by IAM condition to resources whose
@@ -102,9 +110,12 @@ resource "google_project_iam_member" "resource_role" {
   project = var.google_project_name
   role    = google_project_iam_custom_role.resource_role.id
   member  = "serviceAccount:${var.gcp_workspace_sa}"
+  # A binding takes ONE condition, so the workspace-scoping expression and the PoC
+  # time-box are AND-ed together: manage only THIS workspace's resources, and only until
+  # var.poc_expiry (request.time). After expiry the workspace SA can no longer create/manage.
   condition {
-    title       = "scope-to-workspace-${var.workspace_id}"
-    description = "Limit resource management to this workspace's own resources."
-    expression  = "resource.name.extract(\"{x}databricks\") != \"\" && resource.name.extract(\"{x}${var.workspace_id}\") != \"\""
+    title       = "scope-to-workspace-${var.workspace_id}-poc"
+    description = "Scope to this workspace's own resources AND auto-expire after the PoC end date."
+    expression  = "(resource.name.extract(\"{x}databricks\") != \"\" && resource.name.extract(\"{x}${var.workspace_id}\") != \"\") && request.time < timestamp(\"${var.poc_expiry}\")"
   }
 }

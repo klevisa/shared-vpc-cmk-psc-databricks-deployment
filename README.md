@@ -27,7 +27,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 | Phase | Folder |
 |---|---|
 | 1. Databricks Account Setup | [`databricks-account-setup/`](databricks-account-setup/README.md) |
-| 2. Workspace Setup | [`workspace-setup/`](workspace-setup/README.md) (steps 2.1–2.8) |
+| 2. Workspace Setup | [`workspace-setup/`](workspace-setup/README.md) (steps 2.1–2.9) |
 | 3. Data Access | [`data-access/`](data-access/README.md) |
 | 4. Serverless Setup | [`serverless-setup/`](serverless-setup/README.md) |
 | 5. Benchmark Setup | [`benchmark/prerequisites.md`](benchmark/prerequisites.md) |
@@ -56,6 +56,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 | **[2.6 Post-workspace config](workspace-setup/post-workspace/README.md)** | 2.4 (PHASE 1) | Network Eng / Cloud IAM | **GCP:** network + DNS + role admin (host project) | Workspace SA network role on node subnet; DNS A-records |
 | **[2.7 MANAGED_SERVICES CMEK grant](workspace-setup/cmek-workspace-grant/README.md)** | 2.3 + 2.4 (PHASE 1) | Cloud Security / KMS | **GCP:** KMS admin (service project) | Workspace SA `cryptoKeyEncrypterDecrypter` on the CMEK key; managed-services data CMEK-encrypted |
 | **[2.8 Finalize workspace (PHASE 2)](workspace-setup/workspace/README.md)** | 2.5 + 2.6 + 2.7 | Databricks | **Databricks:** account admin (account API) | Re-apply `finalize=true` → workspace RUNNING; assigned to the regional metastore |
+| **[2.9 Tear down the creator identity (End state)](workspace-setup/creator-teardown/README.md)** | 2.8 | Cloud Foundation / Network Eng / Databricks | **GCP:** role admin (service+host) + `accesscontextmanager.policyAdmin` · **Databricks:** account admin | Read-only creator roles stripped, workspace-creation ingress removed, creator SA deregistered — least-privilege steady state |
 
 ## 3. Data Access
 → [`data-access/`](data-access/README.md)
@@ -98,7 +99,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 
 ```
 databricks-account-setup/  Phase 1 — account, admin, metastore, IdP sync (account-console setup)
-workspace-setup/           Phase 2 — the secure workspace (steps 2.1–2.8, each its own config)
+workspace-setup/           Phase 2 — the secure workspace (steps 2.1–2.9, each its own config)
 data-access/               Phase 3 — read-only + read-write Unity Catalog catalogs over GCS
 serverless-setup/          Phase 4 — serverless compute (NCC, perimeter, firewall)
 benchmark/                 Phases 5–6 — deploy workloads, run, measure; setup in prerequisites.md

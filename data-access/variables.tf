@@ -1,3 +1,14 @@
+# ---- PoC time-box ----
+# RFC3339 UTC timestamp after which the bucket-IAM grants (read-only on your existing data
+# bucket, read-write on the analytics bucket) auto-expire, via a request.time IAM
+# condition. Set it to the PoC end date. Backstops teardown; does not replace it. NOTE:
+# GCS IAM conditions require UNIFORM BUCKET-LEVEL ACCESS on the target bucket (the
+# analytics bucket sets it; confirm your existing data bucket has it too).
+variable "poc_expiry" {
+  type        = string
+  description = "RFC3339 UTC timestamp after which this config's bucket-IAM grants auto-expire (request.time IAM condition), e.g. \"2026-12-31T00:00:00Z\"."
+}
+
 # ---- Databricks identities ----
 variable "databricks_account_id" { type = string }
 variable "account_admin_sa" {

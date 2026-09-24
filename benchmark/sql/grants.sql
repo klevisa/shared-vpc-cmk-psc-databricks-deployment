@@ -6,28 +6,23 @@
 --   :collector -> bench-collector (generates the cost results)
 --   :analyst   -> bench-analyst   (reads results, builds dashboards)
 --
--- The two GCP service accounts (dataproc-runner, data-collector) are not UC principals, so
--- they're not granted here — their access is GCP IAM + secret-scope reads (prerequisites.md):
--- bench-runner reads the dataproc-runner key, bench-collector reads the data-collector key.
--- SP creation, workspace assignment, the runner's allow-cluster-create entitlement, the
--- secret-scope READs, and enabling the system schemas are documented in prerequisites.md.
+-- The collector's GCP access is keyless — the collector SA is attached to its job cluster
+-- and the code uses ADC (prerequisites.md §3). No GCP SA keys, no secret scopes. Dataproc is
+-- observed by Airflow (it submits/labels the jobs and captures runtime); nothing here submits
+-- to Dataproc. SP creation, workspace assignment, the runner's allow-cluster-create
+-- entitlement, and enabling the system schemas are documented in prerequisites.md.
 
--- Schemas + tables are created by sql/results_table.sql — run it BEFORE this, since the
--- runner's table-level grant below needs analytics.benchmark.dataproc_runs to already exist.
+-- Schemas + tables are created by sql/results_table.sql — run it BEFORE this.
 
 -- ---- bench-runner: read the source data, write job outputs ----
 GRANT USE CATALOG ON CATALOG analytics TO `:runner`;
 GRANT USE SCHEMA, CREATE, MODIFY, SELECT ON SCHEMA analytics.workloads TO `:runner`;
 GRANT USE CATALOG ON CATALOG source_data_ro TO `:runner`;
 GRANT USE SCHEMA, SELECT ON SCHEMA source_data_ro.raw TO `:runner`;
--- record submitted Dataproc runs — the runner only APPENDS here. UC has no INSERT-only
--- privilege, so MODIFY (its single write privilege) is the tightest grant; no SELECT (the
--- runner never reads it). TABLE-level, so it can't touch the results table or the rest of
--- the collector's schema.
+-- sample_job (runner) APPENDS its per-run Photon coverage. MODIFY only (UC has no INSERT-only
+-- privilege), no SELECT, TABLE-level — so it can't touch the results table or the rest of the
+-- collector's schema.
 GRANT USE SCHEMA ON SCHEMA analytics.benchmark TO `:runner`;
-GRANT MODIFY ON TABLE analytics.benchmark.dataproc_runs TO `:runner`;
--- sample_job (runner) also APPENDS its per-run Photon coverage. MODIFY only, no SELECT,
--- TABLE-level — same least-privilege shape as dataproc_runs above.
 GRANT MODIFY ON TABLE analytics.benchmark.photon_coverage TO `:runner`;
 
 -- ---- bench-collector: write the results table, read the system tables ----

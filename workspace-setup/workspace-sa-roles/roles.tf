@@ -132,3 +132,19 @@ resource "google_service_account_iam_member" "workspace_sa_act_as_compute" {
     expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
   }
 }
+
+# actAs on any ADDITIONAL cluster-attached SAs (beyond the compute SA) — e.g. the Phase 5
+# benchmark collector SA. Same resource-level roles/iam.serviceAccountUser, added in state
+# (re-apply with the SA appended to the list) rather than a manual gcloud grant.
+resource "google_service_account_iam_member" "workspace_sa_act_as_additional" {
+  for_each           = toset(var.additional_actas_service_accounts)
+  service_account_id = "projects/${var.google_project_name}/serviceAccounts/${each.value}"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${var.gcp_workspace_sa}"
+
+  condition {
+    title       = "poc-expiry"
+    description = "Auto-expire this PoC grant after the PoC end date."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
+}

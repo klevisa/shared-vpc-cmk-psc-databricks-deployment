@@ -23,16 +23,6 @@ CREATE TABLE IF NOT EXISTS analytics.benchmark.results (
   collected_at    TIMESTAMP
 ) USING DELTA;
 
--- Run tracking so collection is automatic: submit_dataproc (bench-runner) appends the run_id
--- it mints; collect_dataproc (bench-collector) reads pending run_ids from here — no manual
--- --run-ids to pass. Lives in analytics.benchmark, which the collector already owns.
-CREATE TABLE IF NOT EXISTS analytics.benchmark.dataproc_runs (
-  run_id       STRING,
-  job_name     STRING,
-  engine       STRING,     -- always 'dataproc'
-  submitted_at TIMESTAMP
-) USING DELTA;
-
 -- Photon coverage per Databricks run (Approach A). sample_job (bench-runner) appends one
 -- row per run with the plan-based coverage; collect_dbx (bench-collector) joins it into
 -- results by run_id. Lives in analytics.benchmark, which the collector already owns.

@@ -20,6 +20,11 @@ resource "databricks_storage_credential" "rw" {
   comment  = "Read-write access to the analytics data bucket"
   databricks_gcp_service_account {}
 
+  # Ownership transfers to the governance group; isolate to this workspace. A metastore
+  # admin can reassign ownership later if needed.
+  owner          = var.governance_group
+  isolation_mode = "ISOLATION_MODE_ISOLATED"
+
   depends_on = [databricks_grants.automation]
 }
 
@@ -70,10 +75,17 @@ resource "google_access_context_manager_service_perimeter_ingress_policy" "rw" {
     }
   }
   ingress_to {
-    resources = var.protected_resources
+    resources = var.readwrite_protected_resources
     operations {
       service_name = "storage.googleapis.com"
-      method_selectors { method = "*" }
+      # Object + multipart methods only — NOT "*", which would also admit bucket-IAM /
+      # delete / update methods the objectAdmin grant doesn't need.
+      method_selectors { method = "google.storage.objects.get" }
+      method_selectors { method = "google.storage.objects.list" }
+      method_selectors { method = "google.storage.objects.create" }
+      method_selectors { method = "google.storage.objects.delete" }
+      method_selectors { method = "google.storage.objects.update" }
+      method_selectors { method = "google.storage.buckets.get" }
     }
   }
 }
@@ -86,6 +98,8 @@ resource "databricks_external_location" "rw" {
   credential_name = databricks_storage_credential.rw.name
   read_only       = false
   comment         = "Read-write external location over the analytics data bucket"
+  owner           = var.governance_group
+  isolation_mode  = "ISOLATION_MODE_ISOLATED"
   depends_on = [
     google_storage_bucket_iam_member.rw_admin,
     google_storage_bucket_iam_member.rw_lister,
@@ -95,11 +109,13 @@ resource "databricks_external_location" "rw" {
 
 # Managed catalog — storage_root on the analytics data bucket, so managed tables land there.
 resource "databricks_catalog" "rw" {
-  provider     = databricks.uc_admin
-  name         = var.readwrite_catalog_name
-  storage_root = "gs://${google_storage_bucket.analytics.name}"
-  comment      = "Read-write managed catalog; managed tables land in the analytics data bucket"
-  depends_on   = [databricks_external_location.rw]
+  provider       = databricks.uc_admin
+  name           = var.readwrite_catalog_name
+  storage_root   = "gs://${google_storage_bucket.analytics.name}"
+  comment        = "Read-write managed catalog; managed tables land in the analytics data bucket"
+  owner          = var.governance_group
+  isolation_mode = "ISOLATED"
+  depends_on     = [databricks_external_location.rw]
 }
 
 resource "databricks_schema" "rw" {

@@ -6,10 +6,16 @@
 # -----------------------------------------------------------------------------
 
 resource "databricks_storage_credential" "ro" {
-  provider = databricks.uc_admin
-  name     = var.readonly_storage_credential_name
-  comment  = "Read-only access to the existing data bucket"
+  provider  = databricks.uc_admin
+  name      = var.readonly_storage_credential_name
+  comment   = "Read-only access to the existing data bucket"
+  read_only = true # credential itself is read-only (no writable external location can reuse it)
   databricks_gcp_service_account {}
+
+  # Ownership transfers to the governance group (off the automation SP); isolate to this
+  # workspace. A metastore admin can reassign ownership later if needed.
+  owner          = var.governance_group
+  isolation_mode = "ISOLATION_MODE_ISOLATED"
 
   # created only once the automation SA holds the scoped CREATE privileges
   depends_on = [databricks_grants.automation]
@@ -64,7 +70,7 @@ resource "google_access_context_manager_service_perimeter_ingress_policy" "ro" {
     }
   }
   ingress_to {
-    resources = var.protected_resources
+    resources = var.readonly_protected_resources
     operations {
       service_name = "storage.googleapis.com"
       method_selectors { method = "google.storage.objects.get" }
@@ -81,6 +87,8 @@ resource "databricks_external_location" "ro" {
   credential_name = databricks_storage_credential.ro.name
   read_only       = true
   comment         = "Read-only external location over the existing data bucket"
+  owner           = var.governance_group
+  isolation_mode  = "ISOLATION_MODE_ISOLATED"
   depends_on = [
     google_storage_bucket_iam_member.ro_viewer,
     google_storage_bucket_iam_member.ro_lister,
@@ -90,9 +98,11 @@ resource "databricks_external_location" "ro" {
 
 # Namespace only — no managed storage_root (read-only). External tables added later.
 resource "databricks_catalog" "ro" {
-  provider = databricks.uc_admin
-  name     = var.readonly_catalog_name
-  comment  = "Read-only catalog over your data bucket; external tables added later"
+  provider       = databricks.uc_admin
+  name           = var.readonly_catalog_name
+  comment        = "Read-only catalog over your data bucket; external tables added later"
+  owner          = var.governance_group
+  isolation_mode = "ISOLATED"
 }
 
 resource "databricks_schema" "ro" {

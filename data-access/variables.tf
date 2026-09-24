@@ -39,6 +39,16 @@ variable "workspace_url" {
   type        = string
   description = "From workspace output workspace_url — the workspace UC objects are created against."
 }
+variable "workspace_id" {
+  type        = string
+  description = "From workspace output workspace_id — the workspace the catalogs/credentials/locations are bound to (isolation)."
+}
+
+# ---- Ownership + isolation ----
+variable "governance_group" {
+  type        = string
+  description = "IdP-synced governance group set as OWNER of the catalogs, credentials, and external locations (ownership transfers off the automation SP; a metastore admin can reassign later)."
+}
 
 # ---- GCP team identities ----
 variable "perimeter_sa" {
@@ -47,11 +57,11 @@ variable "perimeter_sa" {
 }
 variable "data_bucket_sa" {
   type        = string
-  description = "SA owning your data bucket project (impersonated). Needs bucket IAM admin on the existing data bucket."
+  description = "SA owning your data bucket project (impersonated). Grant it a BUCKET-SCOPED role on the source bucket only — roles/storage.admin on the bucket resource, or roles/storage.legacyBucketOwner (bucket-level setIamPolicy, no object write) — NOT project-wide admin on the sensitive source project."
 }
 variable "analytics_bucket_sa" {
   type        = string
-  description = "Data Platform SA (impersonated). Needs roles/storage.admin in the analytics bucket's project (creates the bucket + grants IAM)."
+  description = "Data Platform SA (impersonated). Creates the analytics bucket + grants IAM. Put the analytics bucket in a SEPARATE data project (not the workspace service project) so this SA's storage.admin can't reach the workspace's own buckets; if it must live in the service project, condition storage.admin to the analytics bucket resource."
 }
 
 # ---- VPC-SC (your existing perimeter) ----
@@ -59,10 +69,23 @@ variable "perimeter_name" {
   type        = string
   description = "Full service-perimeter name: accessPolicies/<policy>/servicePerimeters/<name>."
 }
-variable "protected_resources" {
+# ingress_to resources, split per catalog (the buckets live in different projects). NO "*"
+# default — that would admit the storage-credential SA to every project in the perimeter.
+variable "readonly_protected_resources" {
   type        = list(string)
-  default     = ["*"]
-  description = "ingress_to resources — the perimeter-protected projects the buckets live in, e.g. [\"projects/222222222222\"]. \"*\" allows all in the perimeter."
+  description = "ingress_to for the RO rule — the source-data bucket's project only, e.g. [\"projects/222222222222\"]."
+  validation {
+    condition     = length(var.readonly_protected_resources) > 0 && !contains(var.readonly_protected_resources, "*")
+    error_message = "Set the source-data project explicitly (e.g. [\"projects/<num>\"]); \"*\" is not allowed."
+  }
+}
+variable "readwrite_protected_resources" {
+  type        = list(string)
+  description = "ingress_to for the RW rule — the analytics bucket's project only, e.g. [\"projects/333333333333\"]."
+  validation {
+    condition     = length(var.readwrite_protected_resources) > 0 && !contains(var.readwrite_protected_resources, "*")
+    error_message = "Set the analytics project explicitly (e.g. [\"projects/<num>\"]); \"*\" is not allowed."
+  }
 }
 variable "databricks_source_projects" {
   type = list(string)

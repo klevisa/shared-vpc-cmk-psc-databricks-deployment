@@ -124,13 +124,14 @@ workspace creation").
 
 ## Step 3 — Remove the workspace-creator SA
 
-`databricks_account_admin_sa` is a **prerequisite identity** (Phase 1.1), not created by this
-repo, so it is removed out-of-band:
+`databricks_account_admin_sa` is create-only (steps 2.1–2.8). Phases 3–5 authenticate as the
+separate **account-admin service principal** (OAuth M2M, no GCP identity), so the creator SA is
+deleted here:
 
 ```bash
 # a. Deregister it as a Databricks ACCOUNT ADMIN (it federates to a Databricks *user* on GCP)
 databricks account users list                 # find the SA's user id (its email)
-databricks account users delete <USER_ID>      # or remove the Account admin role only
+databricks account users delete <USER_ID>
 
 # b. Disable, then delete, the GCP service account
 gcloud iam service-accounts disable <databricks_account_admin_sa>
@@ -138,18 +139,8 @@ gcloud iam service-accounts disable <databricks_account_admin_sa>
 gcloud iam service-accounts delete  <databricks_account_admin_sa>
 ```
 
-> ### ⚠️ Caveat — do this only if you are **not** continuing the full playbook
-> The **creator role** and the **ingress** (steps 1–2) are safe to remove immediately — they are
-> pure creation scaffolding. The **SA itself is also the account-admin automation identity** used
-> by later phases: step 2.8 (already done), **Phase 3** data-access (`account_admin_sa` grants the
-> catalog SP its `CREATE_*`), **Phase 4** serverless (NCC/egress), and **Phase 5** benchmark (SP
-> creation). So:
-> - **If the workspace standup is the deliverable** (no further account-API automation): remove
->   the SA now — this matches the walkthrough's End state exactly.
-> - **If you are running Phases 3–6:** do **steps 1–2 now** (strip the creator role + creation
->   ingress), and defer the SA's deregistration/deletion to the **final teardown** (see the
->   playbook teardown runbook). The SA keeps only its account-admin role in the meantime — no GCP
->   creator roles — which is already the least-privilege posture the review asked for.
+> The **account-admin SP** (Phase 1.1) stays until Phase 5 setup completes, then is revoked/deleted
+> — nothing in steady-state PoC use needs account admin.
 
 ---
 

@@ -28,16 +28,23 @@ account at `https://accounts.gcp.databricks.com`. Sign in with the subscribing i
 note the **account id** (a UUID, under the account menu / Settings). Do this once per
 organization — all workspaces live under the same account.
 
-**b. Two account admins.** There are two, with different jobs:
+**b. Account admins.** Three admin identities, each with a distinct job:
 
 1. **The human account admin** — the Google identity that set up the Marketplace subscription.
    Nothing can grant the *first* admin (it's established at subscription), which is why it's a
    manual prerequisite. This person performs the steps in this phase.
-2. **`databricks_account_admin_sa`** — a **GCP service account** that the human admin registers
-   as a Databricks **account-admin user**, used to *automate* workspace creation (step 2.4
-   impersonates it to call the account API). On GCP a service account federates to a Databricks
-   **user**, not a service principal — so in the account console → **User management → Users →
-   Add user**, add the SA's email, then grant it the **Account admin** role.
+2. **`databricks_account_admin_sa` — workspace creation only** — a **GCP service account**
+   registered as a Databricks **account-admin user** (on GCP a service account federates to a
+   Databricks *user*, not a service principal): account console → **User management → Users → Add
+   user**, add the SA's email, grant the **Account admin** role. Step 2.4 impersonates it to
+   create the workspace, and it holds the read-only GCP creator roles (steps 2.1/2.2). It is
+   **deleted at step 2.9** once the workspace is RUNNING.
+3. **Account-admin service principal — account-API automation** — a **native Databricks service
+   principal** with the **Account admin** role and an **OAuth M2M secret**: account console →
+   **User management → Service principals → Add service principal**, then **Roles → Account
+   admin**, and generate an OAuth secret (client id + secret). Phases 3–5 (data access,
+   serverless, benchmark) authenticate as this SP over the account API — no GCP identity. Revoke
+   it once account setup is complete.
 
 Account admins hold workspace-admin implicitly on every workspace they create, so no separate
 workspace admin is required. A *delegated*, non-account-admin workspace admin can be assigned by

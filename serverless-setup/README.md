@@ -56,9 +56,9 @@ capability here, not part of the measurement path.)
 
 | Identity | Does | Team | Rights |
 |---|---|---|---|
-| `account_admin_sa` | creates the NCC, binds it, sets the network policy | (from prereqs) | Databricks **account admin** |
+| `account_admin_sp` | creates the NCC, binds it, sets the network policy | (from prereqs) | Databricks **account admin** SP (OAuth) |
 
-The runner needs `roles/iam.serviceAccountTokenCreator` on `account_admin_sa`. Everything here is the Databricks **account API** — no GCP resources are created, so no GCP roles are needed.
+`account_admin_sp` authenticates via OAuth M2M (client id + secret) — no impersonation. Everything here is the Databricks **account API**; no GCP resources are created, so no GCP roles are needed.
 
 ## Inputs
 
@@ -72,7 +72,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 **✍️ Your decisions this phase:**
 
-- `account_admin_sa` : the account admin (from prereqs)
+- `account_admin_sp` + `account_admin_sp_client_secret` : the account-admin SP application id + OAuth secret (source the secret via `TF_VAR_account_admin_sp_client_secret`)
 - `ncc_name` : a name for the Network Connectivity Config
 - `restrict_serverless_egress` : `false` (open egress, default) or `true` (locked down)
 - `network_policy_id` / `egress_enforcement_mode` / `allowed_internet_destinations` : only when locking egress down — start `DRY_RUN`

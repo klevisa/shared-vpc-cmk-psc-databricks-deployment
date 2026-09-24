@@ -8,9 +8,11 @@ poc_expiry = "2026-12-31T00:00:00Z"
 
 # ---- Databricks identities ----
 databricks_account_id = "00000000-0000-0000-0000-000000000000"
-account_admin_sa      = "databricks-automation@example-databricks-svc.iam.gserviceaccount.com" # the account admin (from prereqs)
-catalog_automation_sp = "00000000-0000-0000-0000-0000000000dd"                                 # SP application id (OAuth client_id); account-admin-created; creates/owns the catalogs
-# Source the OAuth secret from env: export TF_VAR_catalog_automation_client_secret=...  (don't hard-code)
+account_admin_sp      = "00000000-0000-0000-0000-0000000000aa" # account-admin SP application id (OAuth client_id)
+catalog_automation_sp = "00000000-0000-0000-0000-0000000000dd" # automation SP application id (OAuth client_id); creates/owns the catalogs
+# Source both OAuth secrets from env (don't hard-code):
+#   export TF_VAR_account_admin_sp_client_secret=...   export TF_VAR_catalog_automation_client_secret=...
+account_admin_sp_client_secret   = "REPLACE_VIA_TF_VAR_ENV"
 catalog_automation_client_secret = "REPLACE_VIA_TF_VAR_ENV"
 
 # ---- from prereqs / step 2.4 ----

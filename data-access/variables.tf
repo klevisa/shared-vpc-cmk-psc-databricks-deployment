@@ -11,9 +11,14 @@ variable "poc_expiry" {
 
 # ---- Databricks identities ----
 variable "databricks_account_id" { type = string }
-variable "account_admin_sa" {
+variable "account_admin_sp" {
   type        = string
-  description = "The Databricks ACCOUNT ADMIN SA (from prereqs). Grants the automation SA the scoped metastore CREATE privileges."
+  description = "Account-admin service principal application id (OAuth M2M client_id). Grants the catalog automation SP the scoped metastore CREATE privileges."
+}
+variable "account_admin_sp_client_secret" {
+  type        = string
+  sensitive   = true
+  description = "OAuth M2M client secret for account_admin_sp. Source via TF_VAR_account_admin_sp_client_secret; do not hard-code."
 }
 variable "catalog_automation_sp" {
   type        = string

@@ -42,4 +42,13 @@ resource "google_project_iam_member" "ws_creator_host" {
   project = var.vpc_network_project_id
   role    = google_project_iam_custom_role.ws_creator_host[0].id
   member  = "serviceAccount:${var.databricks_account_admin_sa}"
+
+  # Backstop time-box (out of an abundance of caution). This role is removed outright at
+  # step 2.9 (create_workspace_creator_role=false); the request.time condition just makes a
+  # stale binding also fail closed at poc_expiry. Read-only either way.
+  condition {
+    title       = "poc-expiry"
+    description = "Backstop expiry; the creator role is removed at step 2.9."
+    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+  }
 }

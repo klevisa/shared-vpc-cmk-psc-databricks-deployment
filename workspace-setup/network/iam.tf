@@ -7,6 +7,10 @@
 # workspace is created (step 2.4), so its networkUser grant is step 2.6.
 # -----------------------------------------------------------------------------
 
+# The compute-system agent grant is required for Shared VPC. The cloudservices agent grant
+# is only needed for services that provision via Deployment Manager / managed instance groups
+# — Databricks launches instances directly, so VERIFY it's needed: test workspace finalize
+# (2.8) with the cloudservices entry removed and drop it if clusters still launch.
 locals {
   service_project_network_users = [
     "serviceAccount:${var.google_service_project_number}@cloudservices.gserviceaccount.com",

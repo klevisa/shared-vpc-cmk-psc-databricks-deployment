@@ -1,6 +1,6 @@
 variable "google_service_account_email" {
   type        = string
-  description = "SECURITY/KMS team's automation SA (impersonated). Standing role: roles/cloudkms.admin on the SERVICE project. Runner needs iam.serviceAccountTokenCreator on it."
+  description = "SECURITY/KMS team's automation SA (impersonated). Least privilege: grant roles/cloudkms.admin on the KEYRING resource (after a project-level cloudkms.keyRings.create custom role bootstraps it), not project-wide — this config only touches the one keyring. Runner needs iam.serviceAccountTokenCreator on it."
 }
 variable "google_project_name" {
   type        = string

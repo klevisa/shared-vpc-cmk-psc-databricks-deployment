@@ -32,3 +32,10 @@ variable "workspace_id" {
   type        = string
   description = "From workspace output workspace_id — used in the resource-role IAM condition to scope the grant to this workspace."
 }
+
+# Compute/node SA the workspace SA sets as the VM identity; actAs granted on this SA only.
+# Default = service project's GCE default SA (<number>-compute@developer.gserviceaccount.com).
+variable "compute_sa_email" {
+  type        = string
+  description = "Compute/node SA email the workspace SA sets as the cluster VM identity (actAs granted on this SA only). No serviceAccount: prefix."
+}

@@ -33,49 +33,26 @@ variables:
   benchmark_rows:
     default: "100000000"
 
-  # --- results + GCP billing (collectors; see src/collect_*.py) ---
+  # --- results + GCP billing (collector; see src/collect_dbx.py) ---
   results_table:
     default: analytics.benchmark.results
-  dataproc_runs_table:
-    default: analytics.benchmark.dataproc_runs # submit_dataproc records run_ids here; collect_dataproc reads them
   photon_coverage_table:
     default: analytics.benchmark.photon_coverage # sample_job records per-run Photon coverage here; collect_dbx joins it
   bq_billing_view:
     default: billing-project.benchmark_billing.vm_cost_by_run # scoped authorized view
   gcp_project:
     default: example-databricks-svc
-  dataproc_region:
-    default: us-central1
-  # Two secret scopes — one per GCP SA key — so each SP reads ONLY its own (secret ACLs are
-  # per scope, so a shared scope would let each SP read both keys).
-  runner_secret_scope:
-    default: benchmark_runner # holds the dataproc-runner key; bench-runner has READ
-  collector_secret_scope:
-    default: benchmark_collector # holds the data-collector key; bench-collector has READ
-  dataproc_runner_secret_key:
-    default: gcp_dataproc_runner_key # in runner_secret_scope; read by bench-runner
-  data_collector_secret_key:
-    default: gcp_data_collector_key # in collector_secret_scope; read by bench-collector
-
-  # --- Dataproc submit (orchestrated from Databricks by bench-runner; see src/submit_dataproc.py) ---
-  # submit_dataproc creates an EPHEMERAL cluster per run (hardware matched via the compute
-  # vars above: driver_node_type_id / node_type_id / num_workers), labeled with run_id, and
-  # auto-deleted after this many idle seconds.
-  dataproc_idle_delete_ttl_seconds:
-    default: 600
-  dataproc_pyspark_uri:
-    default: gs://example-analytics-data/benchmark/sample_job.py # the same file, staged on GCS for Dataproc
-  data_collector_sa:
-    default: data-collector@example-databricks-svc.iam.gserviceaccount.com # granted jobs.get per job
-  dataproc_jobs_get_role:
-    default: projects/example-databricks-svc/roles/benchmarkDataprocJobsReader # custom role: dataproc.jobs.get
+  # Keyless collector: the collector SA is attached to the job cluster (gcp_attributes) and
+  # the code reads BigQuery via ADC. No SA keys, no secret scopes.
+  collector_sa:
+    default: gcp-data-collector@example-databricks-svc.iam.gserviceaccount.com
 
   # --- dashboard ---
   warehouse_id:
     default: 0123456789abcdef # SQL warehouse the Lakeview dashboard runs on
 
   # --- service principals (run-as). Set to each SP's application id (see prerequisites.md).
-  # Separation of duties: runner runs + submits, collector materializes results, analyst builds dashboards. ---
+  # Separation of duties: runner runs the workloads, collector materializes results, analyst builds dashboards. ---
   runner_sp:
     default: 00000000-0000-0000-0000-00000000aaaa # bench-runner
   collector_sp:

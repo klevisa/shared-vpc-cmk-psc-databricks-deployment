@@ -39,3 +39,12 @@ variable "compute_sa_email" {
   type        = string
   description = "Compute/node SA email the workspace SA sets as the cluster VM identity (actAs granted on this SA only). No serviceAccount: prefix."
 }
+
+# Additional cluster-attached SAs the workspace SA must actAs, beyond the compute SA — e.g.
+# the Phase 5 benchmark collector SA. Append each in the phase that introduces it and
+# re-apply; the binding is resource-level and time-boxed. Default: none.
+variable "additional_actas_service_accounts" {
+  type        = list(string)
+  default     = []
+  description = "Extra cluster-attached SA emails the workspace SA gets roles/iam.serviceAccountUser on (e.g. the benchmark collector SA). No serviceAccount: prefix."
+}

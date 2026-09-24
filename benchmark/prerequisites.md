@@ -129,17 +129,17 @@ server. No key, no secret scope.
        google_service_account: gcp-data-collector@<proj>.iam.gserviceaccount.com
    ```
 4. **`actAs`** — the **workspace SA** needs `roles/iam.serviceAccountUser` on `gcp-data-collector`
-   for the attach, time-boxed by `poc_expiry`:
-   ```bash
-   gcloud iam service-accounts add-iam-policy-binding \
-     gcp-data-collector@<proj>.iam.gserviceaccount.com \
-     --member="serviceAccount:<gcp_workspace_sa>" --role="roles/iam.serviceAccountUser" \
-     --condition='expression=request.time < timestamp("2026-12-31T00:00:00Z"),title=poc-expiry'
+   for the attach. Add it in Terraform (not a manual gcloud grant, so it stays in state and is torn
+   down by destroy): append the collector SA to `additional_actas_service_accounts` in
+   [`workspace-sa-roles/`](../workspace-setup/workspace-sa-roles/README.md) and re-apply. The binding
+   is resource-level and time-boxed by `poc_expiry`.
+   ```hcl
+   # workspace-sa-roles/terraform.tfvars
+   additional_actas_service_accounts = ["gcp-data-collector@<proj>.iam.gserviceaccount.com"]
    ```
    > **General rule:** the workspace SA needs `actAs` on **every** SA a cluster runs as — the compute
-   > SA and this collector SA. Any future cluster-attached SA needs its own `actAs` grant, made in the
-   > phase that introduces it and time-boxed by `poc_expiry`. See
-   > [`workspace-sa-roles/`](../workspace-setup/workspace-sa-roles/README.md).
+   > SA and this collector SA. Any future cluster-attached SA is added the same way, in the phase that
+   > introduces it.
 5. **Code uses ADC** (`src/bq_billing.py`):
    ```python
    from google.cloud import bigquery

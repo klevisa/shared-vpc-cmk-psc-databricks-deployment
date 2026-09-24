@@ -28,14 +28,10 @@ def main() -> None:
     ap.add_argument("--results-table", default="analytics.benchmark.results")
     ap.add_argument("--coverage-table", default="analytics.benchmark.photon_coverage")
     ap.add_argument("--bq-view", required=True, help="project.dataset.view of the scoped billing view")
-    ap.add_argument("--secret-scope", default="benchmark")
-    ap.add_argument("--secret-key", default="gcp_data_collector_key")
+    ap.add_argument("--gcp-project", default=None, help="billing project for the BigQuery client (ADC)")
     args = ap.parse_args()
 
     spark = SparkSession.builder.getOrCreate()
-    from pyspark.dbutils import DBUtils  # available on Databricks compute
-
-    dbutils = DBUtils(spark)
 
     # 1) DBU + $ per run from system.billing (job_run_id is populated for job compute).
     dbu = spark.sql(
@@ -70,9 +66,9 @@ def main() -> None:
         """
     )
 
-    # 3) VM cost per run from the scoped BigQuery billing view.
-    creds = bq_billing.gcp_credentials(dbutils, args.secret_scope, args.secret_key)
-    vm = bq_billing.vm_cost_by_run(creds, args.bq_view, platform="databricks")
+    # 3) VM cost per run from the scoped BigQuery billing view (keyless — ADC via the
+    #    collector SA attached to this job cluster).
+    vm = bq_billing.vm_cost_by_run(args.bq_view, platform="databricks", project=args.gcp_project)
     vm_sdf = spark.createDataFrame(
         [(k, float(v)) for k, v in vm.items()], schema="run_id string, gcp_vm_cost_usd double"
     )

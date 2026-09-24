@@ -13,3 +13,8 @@ workspace_id     = "1234567890"
 # The compute/node SA the workspace SA impersonates as the VM identity — actAs is scoped to
 # THIS SA only. Default = the service project's GCE default SA (step 2.1); replace the number.
 compute_sa_email = "111111111111-compute@developer.gserviceaccount.com"
+
+# Extra cluster-attached SAs the workspace SA must actAs (added per phase, e.g. Phase 5's
+# keyless benchmark collector SA). Default none; re-apply with the SA appended, e.g.:
+# additional_actas_service_accounts = ["gcp-data-collector@example-databricks-svc.iam.gserviceaccount.com"]
+additional_actas_service_accounts = []

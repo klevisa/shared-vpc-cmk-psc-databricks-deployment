@@ -43,9 +43,10 @@ organization — all workspaces live under the same account.
 3. **Account-admin service principal — account-API automation** — a **native Databricks service
    principal** with the **Account admin** role and an **OAuth M2M secret**: account console →
    **User management → Service principals → Add service principal**, then **Roles → Account
-   admin**, and generate an OAuth secret (client id + secret). Phases 3–5 (data access,
-   serverless, benchmark) authenticate as this SP over the account API — no GCP identity. Revoke
-   it once account setup is complete.
+   admin**, and generate an OAuth secret (client id + secret) with a **short lifetime** matching
+   the setup window (days, not the 2-year default). Phases 3–5 (data access, serverless,
+   benchmark) authenticate as this SP over the account API — no GCP identity. **Revoke the secret
+   as soon as Phase 5 setup completes** (don't wait for final teardown).
 
 Account admins hold workspace-admin implicitly on every workspace they create, so no separate
 workspace admin is required. A *delegated*, non-account-admin workspace admin can be assigned by

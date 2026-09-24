@@ -18,6 +18,10 @@ catalog_automation_client_secret = "REPLACE_VIA_TF_VAR_ENV"
 # ---- from prereqs / step 2.4 ----
 metastore_id  = "11111111-2222-3333-4444-555555555555"
 workspace_url = "https://1234567890123456.7.gcp.databricks.com"
+workspace_id  = "1234567890123456" # for the workspace bindings (isolation)
+
+# IdP-synced governance group set as OWNER of the catalogs/credentials/locations.
+governance_group = "data-governance-admins"
 
 # ---- GCP team identities (set to the same value if one team owns several) ----
 perimeter_sa        = "vpcsc-admin@example-security.iam.gserviceaccount.com"          # Cloud/Network Security
@@ -25,8 +29,10 @@ data_bucket_sa      = "data-bucket-admin@example-source-data.iam.gserviceaccount
 analytics_bucket_sa = "storage-admin@example-databricks-svc.iam.gserviceaccount.com"  # Data Platform
 
 # ---- VPC-SC (your existing perimeter) ----
-perimeter_name      = "accessPolicies/123456789012/servicePerimeters/example_perimeter"
-protected_resources = ["*"] # or ["projects/222222222222"] to scope to the buckets' project
+perimeter_name = "accessPolicies/123456789012/servicePerimeters/example_perimeter"
+# ingress_to scoped per catalog to the buckets' own projects — no "*".
+readonly_protected_resources  = ["projects/222222222222"] # source-data bucket's project
+readwrite_protected_resources = ["projects/333333333333"] # analytics bucket's project
 
 # Source-pin the ingress to Databricks' own projects. REQUIRED — include BOTH the
 # control-plane and the serverless-compute project numbers for your region (covers the
@@ -47,7 +53,7 @@ readonly_external_location_name  = "cust_data_ro_loc"
 
 # ---- Read-write (managed) catalog (the analytics DATA bucket, CREATED here) ----
 analytics_bucket                  = "example-analytics-data"
-analytics_bucket_project          = "example-databricks-svc"
+analytics_bucket_project          = "example-analytics-data-proj" # SEPARATE data project, not the workspace service project (H3)
 analytics_bucket_location         = "us-central1"
 readwrite_catalog_name            = "analytics"
 readwrite_schema_name             = "default"

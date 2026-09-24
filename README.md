@@ -19,7 +19,8 @@ flowchart TB
     P4["4 · Serverless Setup<br/>NCC · perimeter · firewall"]
     P5["5 · Benchmark Setup<br/>billing export · service principals"]
     P6["6 · Benchmark<br/>run · measure · dashboard"]
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6
+    P7["7 · Teardown<br/>reverse of the standup"]
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7
 ```
 
 Each phase maps to one folder; a folder may hold several ordered sub-steps.
@@ -32,6 +33,7 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 | 4. Serverless Setup | [`serverless-setup/`](serverless-setup/README.md) |
 | 5. Benchmark Setup | [`benchmark/prerequisites.md`](benchmark/prerequisites.md) |
 | 6. Benchmark | [`benchmark/`](benchmark/README.md) |
+| 7. Teardown | [`teardown/`](teardown/README.md) |
 
 ---
 
@@ -93,6 +95,15 @@ Each phase maps to one folder; a folder may hold several ordered sub-steps.
 | **[6.1 Run benchmark jobs](benchmark/README.md)** | Benchmark setup complete; workloads deployed | Data Platform + GCP Dataproc | **Databricks:** bench-runner SP · **GCP:** dataproc-runner SA | Each PySpark file run 3 ways (Photon / Spark / Dataproc); runs tagged project/engine/run_id |
 | **[6.2 Measure & monitor](benchmark/README.md)** | Benchmark runs complete; billing export settled | Data Platform + GCP data-collector | **Databricks:** bench-collector + bench-analyst SPs · **GCP:** data-collector SA | `analytics.benchmark.results` (DBU + GCP VM cost + runtime per run); Lakeview dashboard: Photon vs Spark vs Dataproc |
 
+## 7. Teardown
+→ [`teardown/`](teardown/README.md)
+
+Remove everything the PoC created, in reverse order — one `terraform destroy` per config plus the account-level steps — with data-deletion evidence for the security review. The creator identity is already gone (step 2.9); `poc_expiry` `request.time` conditions backstop any missed grant.
+
+| Step | Prereqs | Teams | Privileges | Output |
+|---|---|---|---|---|
+| **[7.1 Teardown (reverse of standup)](teardown/README.md)** | PoC complete | All platform teams + Databricks account admin | destroy rights per phase (GCP + Databricks account admin) | Benchmark → serverless → data access → workspace grants → workspace → CMEK → network → service project → account SP removed; buckets + CMEK key destroyed; deletion evidence captured |
+
 ---
 
 ## Repo layout
@@ -103,6 +114,7 @@ workspace-setup/           Phase 2 — the secure workspace (steps 2.1–2.9, ea
 data-access/               Phase 3 — read-only + read-write Unity Catalog catalogs over GCS
 serverless-setup/          Phase 4 — serverless compute (NCC, perimeter, firewall)
 benchmark/                 Phases 5–6 — deploy workloads, run, measure; setup in prerequisites.md
+teardown/                  Phase 7 — ordered teardown (reverse of the standup) + deletion evidence
 docs/                      architecture reference
 ```
 

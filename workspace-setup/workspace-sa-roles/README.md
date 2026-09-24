@@ -9,13 +9,7 @@ roles on the **service** project that authorize it to build the workspace's own 
 
 - **Project role** (`lpw.databricks.project.role.v2`) — project-wide read (list/get) only
 - **Resource role** (`lpw.databricks.resource.role.v2`) — `storage.buckets.create`, `compute.instances.create`, disk/object management — **scoped by an IAM condition to this workspace's resources**
-- **`actAs` on the compute SA only** (`roles/iam.serviceAccountUser`, resource-level binding) — the workspace SA needs `actAs` solely to set the compute SA as the cluster VM identity, so it's granted on **that one SA**, not project-wide
-
-> **Why `actAs` isn't in the project role.** The Databricks `sa-permissions` doc lists
-> `iam.serviceAccounts.actAs` inside the project-wide role, which would let the workspace SA
-> impersonate **any** SA in the service project (including admin SAs). We scope it down to the
-> compute SA resource — the only SA it ever impersonates. Set `compute_sa_email` to that SA
-> (default: the service project's GCE default SA from step 2.1).
+- **`actAs` on the compute SA only** (`roles/iam.serviceAccountUser`, resource-level binding) — not project-wide. Set `compute_sa_email` to that SA (default: the GCE default SA from step 2.1).
 
 This is the step that lets the workspace actually create its GCS buckets and cluster VMs. In
 a least-privilege deployment the workspace creator SA is read-only, so **nothing** can provision
@@ -36,7 +30,7 @@ On the impersonated Cloud IAM SA (`google_service_account_email`), against the *
 
 - `roles/iam.roleAdmin` — create the two custom roles
 - `roles/resourcemanager.projectIamAdmin` — grant the project/resource roles to the workspace SA
-- `roles/iam.serviceAccountAdmin` — set IAM on the **compute SA** for the scoped `actAs` binding. `projectIamAdmin` grants IAM on the *project*, not on a service-account *resource*, so this is needed in addition (or grant `iam.serviceAccounts.setIamPolicy` on the compute SA specifically).
+- `roles/iam.serviceAccountAdmin` — set IAM on the **compute SA** for the scoped `actAs` binding (projectIamAdmin doesn't cover SA-resource IAM)
 
 The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that SA.
 

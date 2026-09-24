@@ -7,26 +7,16 @@
 # service project. Without it the step-2.8 finalize can never bring the workspace RUNNING.
 #
 # Two custom roles (least-privilege flow), both on the SERVICE project:
-#   - Project role  : project-wide read only (list/get). actAs is NOT here — see below.
-#   - Resource role : the create/delete/use permissions, SCOPED to this workspace's
-#                     resources via an IAM condition on the workspace id.
-# The NETWORK role (subnet) is granted separately by the network team in step 2.6, and
-# the CMEK grant by security in step 2.7.
+#   - Project role  : project-wide read (list/get) only.
+#   - Resource role : create/delete/use, scoped to this workspace's resources by IAM condition.
+# actAs is granted on the compute SA only (roles/iam.serviceAccountUser, below), not
+# project-wide. Network role (subnet) = step 2.6; CMEK grant = step 2.7.
 #
-# actAs SCOPING (tighter than the Databricks sa-permissions doc): the doc lists
-# iam.serviceAccounts.actAs inside the project-wide role, but the workspace SA only needs
-# actAs to set the COMPUTE SA as the cluster VM identity (compute.instances.setServiceAccount).
-# Project-wide actAs would let it impersonate ANY SA in the project (incl. admin SAs). So we
-# removed actAs from the project role and instead grant roles/iam.serviceAccountUser on the
-# COMPUTE SA resource only (google_service_account_iam_member, below).
-#
-# Source of truth for the exact permission lists + the IAM condition (re-verify in review):
+# Permission lists source of truth (re-verify in review):
 #   https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/sa-permissions
 #
-# NOTE: needs roles/iam.roleAdmin (create custom roles) + roles/resourcemanager.projectIamAdmin
-# (set project IAM policy) on the SERVICE project on this step's SA — PLUS, because the
-# compute-SA actAs binding sets IAM on a service-account RESOURCE (not the project),
-# roles/iam.serviceAccountAdmin on the service project (projectIamAdmin does not cover it).
+# NOTE: this step's SA needs roles/iam.roleAdmin + roles/resourcemanager.projectIamAdmin +
+# roles/iam.serviceAccountAdmin (last one to set IAM on the compute SA) on the SERVICE project.
 # -----------------------------------------------------------------------------
 
 resource "google_project_iam_custom_role" "project_role" {
@@ -46,8 +36,7 @@ resource "google_project_iam_custom_role" "project_role" {
     "compute.zoneOperations.list",
     "compute.zones.get",
     "compute.zones.list",
-    # iam.serviceAccounts.actAs intentionally REMOVED — granted on the compute SA resource
-    # only (roles/iam.serviceAccountUser), not project-wide. See the header + binding below.
+    # actAs removed — granted on the compute SA only (binding below).
     "resourcemanager.projects.get",
     "serviceusage.quotas.get",
     "serviceusage.services.list",
@@ -130,19 +119,13 @@ resource "google_project_iam_member" "resource_role" {
   }
 }
 
-# actAs — SCOPED to the compute SA only. This replaces the project-wide actAs that used to
-# live in the project role: the workspace SA needs actAs solely to set the compute SA as the
-# cluster VM identity (compute.instances.setServiceAccount). roles/iam.serviceAccountUser on
-# THIS SA resource grants exactly iam.serviceAccounts.actAs on it — nothing else in the
-# project. (Setting IAM on a service-account resource needs iam.serviceAccounts.setIamPolicy
-# on this step's SA — see the header NOTE about roles/iam.serviceAccountAdmin.)
+# actAs on the compute SA only — lets the workspace SA set it as the cluster VM identity.
 resource "google_service_account_iam_member" "workspace_sa_act_as_compute" {
   service_account_id = "projects/${var.google_project_name}/serviceAccounts/${var.compute_sa_email}"
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${var.gcp_workspace_sa}"
 
-  # PoC time-box: self-expires at var.poc_expiry via a request.time IAM condition, matching
-  # the other workspace-SA operator grants.
+  # PoC time-box (request.time).
   condition {
     title       = "poc-expiry"
     description = "Auto-expire this PoC grant after the PoC end date."

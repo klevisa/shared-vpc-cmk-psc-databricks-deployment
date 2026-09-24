@@ -9,7 +9,7 @@ roles on the **service** project that authorize it to build the workspace's own 
 
 - **Project role** (`lpw.databricks.project.role.v2`) — project-wide read (list/get) only
 - **Resource role** (`lpw.databricks.resource.role.v2`) — `storage.buckets.create`, `compute.instances.create`, disk/object management — **scoped by an IAM condition to this workspace's resources**
-- **`actAs` on the compute SA only** (`roles/iam.serviceAccountUser`, resource-level binding) — not project-wide. Set `compute_sa_email` to that SA (default: the GCE default SA from step 2.1).
+- **`actAs` on the compute SA only** (`roles/iam.serviceAccountUser`, resource-level binding) — not project-wide. Set `compute_sa_email` to the dedicated node SA from step 2.1 (`node_sa_email`, no project roles).
 
 This is the step that lets the workspace actually create its GCS buckets and cluster VMs. In
 a least-privilege deployment the workspace creator SA is read-only, so **nothing** can provision
@@ -30,7 +30,7 @@ On the impersonated Cloud IAM SA (`google_service_account_email`), against the *
 
 - `roles/iam.roleAdmin` — create the two custom roles
 - `roles/resourcemanager.projectIamAdmin` — grant the project/resource roles to the workspace SA
-- `roles/iam.serviceAccountAdmin` — set IAM on the **compute SA** for the scoped `actAs` binding (projectIamAdmin doesn't cover SA-resource IAM)
+- `roles/iam.serviceAccountAdmin` **on the compute SA resource only** — granted in step 2.1 (`node-sa.tf`), so this step binds the workspace SA's scoped `actAs` without any **project-wide** SA-admin
 
 The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that SA.
 
@@ -41,7 +41,7 @@ The runner (person or CI) needs `roles/iam.serviceAccountTokenCreator` on that S
 - `google_project_name` : the **service** project id — from **step 2.1** `service_project_id`
 - `gcp_workspace_sa` : the workspace service account — from **step 2.4** `gcp_workspace_sa`
 - `workspace_id` : the workspace id — from **step 2.4** `workspace_id` (used in the resource-role IAM condition)
-- `compute_sa_email` : the compute/node SA the workspace SA impersonates as the VM identity — the service project's GCE default SA (`<service_project_number>-compute@developer.gserviceaccount.com`, from **step 2.1**), or your custom node SA
+- `compute_sa_email` : the dedicated node SA the workspace SA impersonates as the VM identity — from **step 2.1** output `node_sa_email` (no project roles)
 
 **✍️ Your decisions this phase:**
 

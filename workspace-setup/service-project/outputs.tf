@@ -14,3 +14,7 @@ output "gcs_service_agent" {
   value       = data.google_storage_project_service_account.gcs.email_address
   description = "The GCS service agent step 2.3 grants CMEK access to."
 }
+output "node_sa_email" {
+  value       = google_service_account.node.email
+  description = "→ step 2.5 compute_sa_email. Dedicated cluster node SA (no project roles)."
+}

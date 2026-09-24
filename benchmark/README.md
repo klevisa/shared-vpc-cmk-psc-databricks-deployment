@@ -141,7 +141,7 @@ Databricks trigger credential) drives the orchestration; people only view result
 |---|---|---|---|
 | `gcp-data-collector` | GCP SA | GCP costs (both platforms) from the scoped view | `bigquery.dataViewer` on the view + `bigquery.jobUser`. **No `dataproc.*`** |
 | `bench-runner` | Databricks SP | runs the Photon/Spark jobs (triggered by Airflow); writes the tracking row + Photon coverage | read `source_data_ro`, write `analytics.workloads` + `benchmark_runs` + `photon_coverage` |
-| `bench-collector` | Databricks SP | materializes `results` | write `analytics.benchmark`, read system tables; reads only `benchmark_collector` |
+| `bench-collector` | Databricks SP | materializes `results` | write `analytics.benchmark`, read system tables; GCP access via the collector cluster's attached SA (keyless) |
 | `bench-analyst` | Databricks SP | builds the dashboard | read `analytics.benchmark` only |
 | Airflow (Composer) | GCP SA + Databricks cred | orchestrates: sense, manifest, STS, verify, trigger | Dataproc read + label; GCS r/w; STS; VPC-SC ingress; `CAN_MANAGE_RUN` on the Databricks job |
 

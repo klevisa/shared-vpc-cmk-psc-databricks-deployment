@@ -104,30 +104,47 @@ Dataproc permission at all.
 
 ## 3. The collector service account
 
-| GCP SA | Read by | GCP access |
+| GCP SA | Used by | GCP access |
 |---|---|---|
-| `gcp-data-collector` | `bench-collector` | read (`bigquery.dataViewer`) on the authorized view (§2) + `bigquery.jobUser` to run the query. **No `dataproc.*`** — runtime is captured by Airflow. |
+| `gcp-data-collector` | `bench-collector`'s collector job cluster | `bigquery.dataViewer` on the authorized view (§2) + `bigquery.jobUser` to run the query. **No `dataproc.*`**. |
 
-> **PoC time-box (`request.time`).** These are PoC-lifetime grants, so add a time-bound IAM
-> condition to the collector SA's project bindings — the gcloud analogue of the `poc_expiry`
-> `request.time` conditions the Terraform configs use (`workspace-sa-roles/`, `cmek/`,
-> `cmek-workspace-grant/`, `post-workspace/`, `data-access/`). Example:
-> ```bash
-> gcloud projects add-iam-policy-binding <BILLING_PROJECT> \
->   --member="serviceAccount:gcp-data-collector@<proj>.iam.gserviceaccount.com" \
->   --role="roles/bigquery.jobUser" \
->   --condition='expression=request.time < timestamp("2026-12-31T00:00:00Z"),title=poc-expiry'
-> ```
-> The grant then lapses on the PoC end date even if teardown slips. The **SA key** is a separate,
-> higher-priority concern: user-managed keys don't expire — rotate it (org policy
-> `constraints/iam.serviceAccountKeyExpiryHours`) or go keyless, and at teardown delete the key
-> **and** the SA, not just the secret scope.
+The collector is **keyless**: its job cluster runs on GCE VMs attached to `gcp-data-collector`, and
+the code authenticates as that SA via Application Default Credentials (ADC) through the metadata
+server. No key, no secret scope.
 
-Store its key in a secret scope:
-```bash
-databricks secrets create-scope benchmark_collector
-databricks secrets put-secret benchmark_collector gcp_data_collector_key --string-value "$(cat data-collector-key.json)"
-```
+1. **Create `gcp-data-collector`** (no key).
+2. **Grant its BigQuery roles**, time-boxed to `poc_expiry` (`2026-12-31T00:00:00Z`, the shared
+   `request.time` end date across the PoC configs) so access lapses on the PoC end date:
+   ```bash
+   gcloud projects add-iam-policy-binding <BILLING_PROJECT> \
+     --member="serviceAccount:gcp-data-collector@<proj>.iam.gserviceaccount.com" \
+     --role="roles/bigquery.jobUser" \
+     --condition='expression=request.time < timestamp("2026-12-31T00:00:00Z"),title=poc-expiry'
+   # plus roles/bigquery.dataViewer on the authorized view (§2)
+   ```
+3. **Attach it to the collector job cluster** (`resources/collectors.yml`):
+   ```yaml
+   new_cluster:
+     gcp_attributes:
+       google_service_account: gcp-data-collector@<proj>.iam.gserviceaccount.com
+   ```
+4. **`actAs`** — the **workspace SA** needs `roles/iam.serviceAccountUser` on `gcp-data-collector`
+   for the attach, time-boxed by `poc_expiry`:
+   ```bash
+   gcloud iam service-accounts add-iam-policy-binding \
+     gcp-data-collector@<proj>.iam.gserviceaccount.com \
+     --member="serviceAccount:<gcp_workspace_sa>" --role="roles/iam.serviceAccountUser" \
+     --condition='expression=request.time < timestamp("2026-12-31T00:00:00Z"),title=poc-expiry'
+   ```
+   > **General rule:** the workspace SA needs `actAs` on **every** SA a cluster runs as — the compute
+   > SA and this collector SA. Any future cluster-attached SA needs its own `actAs` grant, made in the
+   > phase that introduces it and time-boxed by `poc_expiry`. See
+   > [`workspace-sa-roles/`](../workspace-setup/workspace-sa-roles/README.md).
+5. **Code uses ADC** (`src/bq_billing.py`):
+   ```python
+   from google.cloud import bigquery
+   client = bigquery.Client(project="<billing-project>")   # ADC = the cluster's attached SA
+   ```
 
 ## 4. Airflow (Cloud Composer) — orchestration + copy prerequisites
 
@@ -170,7 +187,7 @@ Three **Databricks** service principals, created once by an **account admin**. P
 | SP | Runs | Access |
 |---|---|---|
 | `bench-runner` | the Databricks Photon/Spark workloads (triggered by Airflow); writes the tracking row + appends Photon coverage | reads `source_data_ro`, writes `analytics.workloads`, writes `analytics.benchmark.benchmark_runs` (tracking) + `analytics.benchmark.photon_coverage`. Needs no GCP key. |
-| `bench-collector` | the cost collector | writes `analytics.benchmark`, reads system tables (`billing`, `lakeflow`); READ on the `benchmark_collector` scope only |
+| `bench-collector` | the cost collector | writes `analytics.benchmark`, reads system tables (`billing`, `lakeflow`); GCP access via the collector job cluster's attached SA (§3, keyless) — no secret scope |
 | `bench-analyst` | the dashboard | reads `analytics.benchmark` only |
 
 Steps (account admin, then catalog owner):
@@ -186,7 +203,5 @@ Steps (account admin, then catalog owner):
    confirm those two are enabled.
 4. **Run the grants** — as the `analytics` catalog owner, run [`sql/grants.sql`](sql/grants.sql) with
    each SP's application id substituted for `:runner` / `:collector` / `:analyst`.
-5. **Secret ACL**:
-   ```bash
-   databricks secrets put-acl benchmark_collector <bench-collector-app-id> READ
-   ```
+5. **Collector GCP access** — keyless (§3): attach `gcp-data-collector` to the collector job cluster
+   and grant the workspace SA `actAs` on it. No secret scope.

@@ -63,6 +63,12 @@ three are applied, run step 2.8 (`workspace/` with `finalize=true`) to bring the
 
 ## Additional info
 
+> **`actAs` scales with cluster-attached SAs.** The workspace SA needs `roles/iam.serviceAccountUser`
+> (`actAs`) on **every** service account a cluster runs as. This step grants it on the **compute SA**;
+> the benchmark's keyless collector SA (`benchmark/prerequisites.md` §3) gets its own `actAs` grant in
+> that phase. Any cluster-attached SA needs one, or the cluster can't launch — granted in the phase
+> that introduces the SA (time-boxed by `poc_expiry`), not project-wide here.
+
 The permission lists and the resource-role IAM condition are transcribed from
 [Required permissions for the workspace service account](https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/sa-permissions)
 — treat that page as the source of truth and re-verify in review. The condition

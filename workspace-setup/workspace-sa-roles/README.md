@@ -69,6 +69,12 @@ three are applied, run step 2.8 (`workspace/` with `finalize=true`) to bring the
 > that phase. Any cluster-attached SA needs one, or the cluster can't launch — granted in the phase
 > that introduces the SA (time-boxed by `poc_expiry`), not project-wide here.
 
+> **Verify cluster launch (tighter than the vendor list).** The project role omits the token
+> permissions Databricks lists (`getAccessToken`/`getOpenIdToken`) and `actAs` is on the compute
+> SA only — tighter than the doc. Confirm clusters reach RUNNING in a non-production workspace
+> with this role set, and record the result here. If a Google Service Account feature needs it,
+> add `roles/iam.serviceAccountTokenCreator` on the **compute SA only**, not the project.
+
 The permission lists and the resource-role IAM condition are transcribed from
 [Required permissions for the workspace service account](https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/sa-permissions)
 — treat that page as the source of truth and re-verify in review. The condition

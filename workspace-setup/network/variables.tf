@@ -1,7 +1,7 @@
 # ---- Identity ----
 variable "google_service_account_email" {
   type        = string
-  description = "NETWORK team's automation SA (impersonated). Standing roles: compute.networkAdmin + compute.securityAdmin + dns.admin + roles/iam.roleAdmin (to create the host-side workspace-creator custom role) on the (existing) HOST project. Runner needs iam.serviceAccountTokenCreator on it."
+  description = "NETWORK team's automation SA (impersonated). Standing roles: compute.networkAdmin + compute.securityAdmin + dns.admin + roles/iam.roleAdmin on the (existing) HOST project. Where the host carries other tenants, CONDITION networkAdmin/securityAdmin on resource.name of this VPC and its subnets so a PoC runner can't edit other tenants' firewall/subnet IAM. Runner needs iam.serviceAccountTokenCreator on it."
 }
 
 # The least-privilege workspace CREATOR SA (db account-admin automation SA, impersonated by
@@ -18,6 +18,13 @@ variable "create_workspace_creator_role" {
   type        = bool
   default     = true
   description = "Whether to grant the read-only workspace-creator role on the host project. Set false in the End state (after step 2.8) to tear it down."
+}
+
+# Backstop expiry on the (read-only) creator-role grant — it's removed outright at 2.9, this
+# just makes a stale binding fail closed. RFC3339 UTC, e.g. "2026-12-31T00:00:00Z".
+variable "poc_expiry" {
+  type        = string
+  description = "RFC3339 UTC timestamp after which the creator-role grant auto-expires (request.time backstop)."
 }
 
 # ---- Projects ----

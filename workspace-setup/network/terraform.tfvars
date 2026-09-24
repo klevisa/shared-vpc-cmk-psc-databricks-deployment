@@ -13,6 +13,7 @@ databricks_account_admin_sa = "databricks-automation@example-databricks-svc.iam.
 # Keep true through workspace creation; flip to false and re-apply in the End state
 # (after step 2.8) to tear down the read-only creator role. See creator-teardown/.
 create_workspace_creator_role = true
+poc_expiry                    = "2026-12-31T00:00:00Z" # backstop expiry on the creator-role grant
 
 vpc_name         = "example-vpc"
 node_subnet_name = "example-node-subnet"

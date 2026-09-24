@@ -20,6 +20,13 @@ variable "create_workspace_creator_role" {
   default     = true
   description = "Whether to grant the read-only workspace-creator role on the service project. Set false in the End state (after step 2.8) to tear it down."
 }
+
+# Backstop expiry on the (read-only) creator-role grant — it's removed outright at 2.9, this
+# just makes a stale binding fail closed. RFC3339 UTC, e.g. "2026-12-31T00:00:00Z".
+variable "poc_expiry" {
+  type        = string
+  description = "RFC3339 UTC timestamp after which the creator-role grant auto-expires (request.time backstop)."
+}
 variable "google_region" {
   type    = string
   default = "us-central1"

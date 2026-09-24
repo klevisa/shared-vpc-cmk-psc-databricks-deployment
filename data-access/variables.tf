@@ -53,7 +53,7 @@ variable "governance_group" {
 # ---- GCP team identities ----
 variable "perimeter_sa" {
   type        = string
-  description = "Cloud/Network Security SA (impersonated). Needs roles/accesscontextmanager.policyAdmin on the perimeter."
+  description = "Cloud/Network Security SA (impersonated). Needs accesscontextmanager.policyAdmin — but grant it on a SCOPED access policy (a PoC folder-scoped policy, gcloud access-context-manager policies create --scopes=folders/...), not the org default policy, so it can't edit every perimeter in the org. If the org uses one shared perimeter, move these two ingress rules into Network Security's own perimeter config and have this phase only output the generated SA emails."
 }
 variable "data_bucket_sa" {
   type        = string

@@ -69,11 +69,15 @@ three are applied, run step 2.8 (`workspace/` with `finalize=true`) to bring the
 > that phase. Any cluster-attached SA needs one, or the cluster can't launch — granted in the phase
 > that introduces the SA (time-boxed by `poc_expiry`), not project-wide here.
 
-> **Verify cluster launch (tighter than the vendor list).** The project role omits the token
-> permissions Databricks lists (`getAccessToken`/`getOpenIdToken`) and `actAs` is on the compute
-> SA only — tighter than the doc. Confirm clusters reach RUNNING in a non-production workspace
-> with this role set, and record the result here. If a Google Service Account feature needs it,
-> add `roles/iam.serviceAccountTokenCreator` on the **compute SA only**, not the project.
+> **Aligned with the vendor v2 role — resource-scoped `actAs`.** The current
+> [least-privilege operator roles](https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/sa-permissions#lpw-operator-roles)
+> list `iam.serviceAccounts.actAs` as the only SA permission in the project role, and the doc
+> explicitly permits granting `actAs` per-SA at the
+> resource level instead of project-wide: *"If `iam.serviceAccounts.actAs` is not granted at the
+> project level, you must grant it to the workspace service account for each individual service
+> account that you intend to attach."* This config takes that tighter option — `actAs` on the
+> compute SA resource, nothing at the project — so it matches the v2 baseline. Still confirm
+> clusters reach RUNNING in a non-production workspace and record the result here.
 
 The permission lists and the resource-role IAM condition are transcribed from
 [Required permissions for the workspace service account](https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/sa-permissions)

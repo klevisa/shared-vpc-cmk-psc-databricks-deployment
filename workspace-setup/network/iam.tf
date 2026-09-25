@@ -1,28 +1,18 @@
 # -----------------------------------------------------------------------------
-# STATIC Shared VPC subnet grants — the SERVICE project's own compute identities
-# must be allowed to place VMs on the HOST node subnet. These need only the
-# service project number (no workspace), so they belong to step 2.2.
+# STATIC Shared VPC subnet grant — the SERVICE project's Compute Engine service agent
+# needs networkUser on the HOST node subnet to place cluster VMs on the Shared VPC (a
+# GCP Shared VPC requirement). It needs only the service project number (no workspace),
+# so it belongs to step 2.2.
 #
 # The Databricks WORKSPACE SA grant is NOT here — that SA doesn't exist until the
-# workspace is created (step 2.4), so its networkUser grant is step 2.6.
+# workspace is created (step 2.4), so its network role (step 2.6) is the only other
+# identity granted on the subnet.
 # -----------------------------------------------------------------------------
 
-# The compute-system agent grant is required for Shared VPC. The cloudservices agent grant
-# is only needed for services that provision via Deployment Manager / managed instance groups
-# — Databricks launches instances directly, so VERIFY it's needed: test workspace finalize
-# (2.8) with the cloudservices entry removed and drop it if clusters still launch.
-locals {
-  service_project_network_users = [
-    "serviceAccount:${var.google_service_project_number}@cloudservices.gserviceaccount.com",
-    "serviceAccount:service-${var.google_service_project_number}@compute-system.iam.gserviceaccount.com",
-  ]
-}
-
-resource "google_compute_subnetwork_iam_member" "shared_subnet_users" {
-  for_each   = toset(local.service_project_network_users)
+resource "google_compute_subnetwork_iam_member" "compute_agent_subnet_user" {
   project    = var.vpc_network_project_id
   region     = var.google_region
   subnetwork = google_compute_subnetwork.node_subnet.name
   role       = "roles/compute.networkUser"
-  member     = each.value
+  member     = "serviceAccount:service-${var.google_service_project_number}@compute-system.iam.gserviceaccount.com"
 }

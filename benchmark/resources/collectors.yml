@@ -13,6 +13,8 @@ resources:
             spark_version: ${var.spark_version}
             node_type_id: n2-standard-4
             num_workers: 1
+            # Cluster policy allow-lists the collector SA (and the node SA).
+            policy_id: ${resources.cluster_policies.node_identity.id}
             gcp_attributes:
               # ADC identity for the BigQuery reads — the keyless collector SA.
               google_service_account: ${var.collector_sa}

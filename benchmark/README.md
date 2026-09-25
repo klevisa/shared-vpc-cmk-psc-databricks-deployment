@@ -148,6 +148,13 @@ Databricks trigger credential) drives the orchestration; people only view result
 Creating the principals, the SP↔workspace assignment, the runner's `allow-cluster-create`, enabling
 the system schemas, the grants, and the secret ACL are all in **[prerequisites.md](prerequisites.md)**.
 
+**Cluster-identity allow-list.** `resources/cluster_policy.yml` defines a cluster policy
+(`benchmark-node-identity`) that allow-lists the Google identity a cluster may run as: the
+zero-role **node SA** for workload clusters and the keyless **collector SA** for the cost
+collector — anything else is rejected. Both job clusters reference it; the run-as SPs get
+`CAN_USE`. This is PoC scope (two identities); in prod Yahoo extends the list and applies the
+same pattern to all-purpose clusters (remove blanket `allow-cluster-create`, grant the policy).
+
 ## Layout
 
 ```

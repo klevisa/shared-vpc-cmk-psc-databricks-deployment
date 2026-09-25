@@ -36,7 +36,7 @@ variable "vpc_network_project_id" {
 }
 variable "google_service_project_number" {
   type        = string
-  description = "SERVICE project NUMBER — used for the <num>@cloudservices and service-<num>@compute-system agent emails on the subnet grants."
+  description = "SERVICE project NUMBER — used for the service-<num>@compute-system agent email on the subnet grant."
 }
 variable "google_region" {
   type    = string

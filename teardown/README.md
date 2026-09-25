@@ -36,15 +36,16 @@ plus any account-level or GCP-console step. Run **top to bottom**.
 | **T3** | **Data access (3)** | Reassign/drop objects owned by the automation SP first (a metastore admin can reassign). `terraform destroy data-access/` → drops both catalogs/schemas/external locations/storage credentials, **revokes the Mail-bucket `objectViewer`+`legacyBucketReader`**, revokes analytics `objectAdmin`, **deletes both VPC-SC ingress rules** (`databricks-catalog-ro-gcs`, `databricks-catalog-rw-gcs` — see [T3 detail](#t3-detail--vpc-sc-ingress-rules)), deletes the analytics bucket. Revoke the automation SP's `CREATE_*` grants; delete the automation SP | Data Platform + Net Sec + bucket owners |
 | **T4** | **Workspace-SA operator grants (2.5–2.7)** | `terraform destroy` `cmek-workspace-grant/`, `post-workspace/`, `workspace-sa-roles/` → removes the CMEK grant, the network role + binding, the project/resource roles, and the compute-SA + collector-SA `actAs` bindings | Security + Net Sec + Cloud IAM |
 | **T5** | **The workspace (2.4/2.8)** | `terraform destroy workspace/` → deletes the workspace (**releases the workspace SA + its buckets/VMs**), PSC regs, private-access settings, network config, CMEK registration, metastore assignment | Data Platform |
-| **T6** | **CMEK (2.3)** | `terraform destroy cmek/` → removes the storage-agent grants; **schedule the key versions for destruction** (`gcloud kms keys versions destroy`), delete the keyring once destroyed | Security / KMS |
+| **T6** | **CMEK (2.3)** | Remove the storage-agent grants (`terraform destroy -target=google_kms_crypto_key_iam_member.storage_agents`, or let them expire at `poc_expiry`); **schedule the key versions for destruction** (`gcloud kms keys versions destroy`). The **key ring + key are retained by design** — `prevent_destroy` blocks a full `terraform destroy cmek/`, and GCP does not delete key rings/keys anyway (only versions). `terraform state rm` them if you need to clear state | Security / KMS |
 | **T7** | **Network (2.2)** | `terraform destroy network/` → PSC endpoints/forwarding rules, DNS records + zone, firewall, subnets, VPC; remove the STS VPC-SC ingress/egress rule if still present | Network Eng |
 | **T8** | **Service project (2.1)** | `terraform destroy service-project/` → detach from the Shared VPC host, remove APIs; delete/shut down the service project | Cloud Foundation |
 | **T9** | **Account (1)** | Revoke/delete the **account-admin SP** (all account-API work is done). The creator SA is already gone (2.9). Metastore: keep if region-shared, else delete. Databricks account/subscription: keep if org-wide | Databricks account admin |
 
 > **Ordering notes.** T5 releases the workspace SA, so the T4 bindings become no-ops — still
 > `destroy` T4 to remove the custom **role definitions**. KMS key versions are *scheduled* for
-> destruction (24 h–30 d window); record the scheduled timestamp. Keep the deny-all default firewall
-> until T7.
+> destruction (`destroy_scheduled_duration`, 30 d); record the scheduled timestamp — it can be
+> cancelled within that window. The key/key ring carry `prevent_destroy`, so tear CMEK down by
+> target-destroying the grants, not the whole config. Keep the deny-all default firewall until T7.
 
 ---
 

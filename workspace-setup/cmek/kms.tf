@@ -16,6 +16,12 @@ resource "google_kms_key_ring" "ring" {
   name     = var.kms_keyring_name
   project  = var.google_project_name
   location = var.google_region
+
+  # Key access is data access, and a lost key bricks all workspace data. Block a stray
+  # terraform destroy from targeting the ring. Key rings are not deletable in GCP anyway.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_kms_crypto_key" "key" {
@@ -23,6 +29,15 @@ resource "google_kms_crypto_key" "key" {
   key_ring        = google_kms_key_ring.ring.id
   purpose         = "ENCRYPT_DECRYPT"
   rotation_period = "7776000s" # 90 days
+
+  # 30-day recovery window: a scheduled key-version destruction can be cancelled within
+  # this window before the material is gone. Pair with prevent_destroy so terraform can't
+  # remove the key itself.
+  destroy_scheduled_duration = "2592000s" # 30 days
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 locals {

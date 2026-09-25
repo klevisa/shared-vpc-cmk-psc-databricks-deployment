@@ -113,10 +113,18 @@ resource "google_project_iam_member" "resource_role" {
   # A binding takes ONE condition, so the workspace-scoping expression and the PoC
   # time-box are AND-ed together: manage only THIS workspace's resources, and only until
   # var.poc_expiry (request.time). After expiry the workspace SA can no longer create/manage.
+  #
+  # The scoping matches the CONTIGUOUS token "databricks-<workspace_id>" (the workspace's
+  # bucket/instance/disk prefix), not "databricks" and "<workspace_id>" as two independent
+  # substrings — so a resource that merely contains both tokens in different positions cannot
+  # match. resource.name is a full path (projects/_/buckets/... vs projects/<p>/zones/<z>/
+  # instances/...), so a single startsWith() on the whole path can't cover both types; the
+  # contiguous extract() is the portable tightening. VERIFY at finalize (2.8) that the
+  # workspace SA can create/manage this workspace's instances and disks with this condition.
   condition {
     title       = "scope-to-workspace-${var.workspace_id}-poc"
     description = "Scope to this workspace's own resources AND auto-expire after the PoC end date."
-    expression  = "(resource.name.extract(\"{x}databricks\") != \"\" && resource.name.extract(\"{x}${var.workspace_id}\") != \"\") && request.time < timestamp(\"${var.poc_expiry}\")"
+    expression  = "resource.name.extract(\"{x}databricks-${var.workspace_id}\") != \"\" && request.time < timestamp(\"${var.poc_expiry}\")"
   }
 }
 

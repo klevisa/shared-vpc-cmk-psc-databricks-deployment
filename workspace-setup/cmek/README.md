@@ -6,7 +6,7 @@
 
 Creates the customer-managed encryption key (CMEK) in the **service project** and grants the project's Google-managed agents permission to use it:
 
-- **Key ring + crypto key** — the CMEK the workspace's storage and managed services are encrypted with
+- **Key ring + crypto key** — the CMEK the workspace's storage and managed services are encrypted with. Both carry `prevent_destroy` and the key has a 30-day `destroy_scheduled_duration`: a lost key bricks all workspace data, so teardown retains them and only schedules key *versions* for destruction (see teardown T6).
 - **Service-agent grants** — `cryptoKeyEncrypterDecrypter` to the service project's:
   - `compute-system` agent (VM disks)
   - `gs-project-accounts` agent (GCS)

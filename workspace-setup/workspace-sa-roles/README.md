@@ -79,13 +79,12 @@ three are applied, run step 2.8 (`workspace/` with `finalize=true`) to bring the
 > compute SA resource, nothing at the project — so it matches the v2 baseline. Still confirm
 > clusters reach RUNNING in a non-production workspace and record the result here.
 
-The permission lists are transcribed from
+The permission lists and the resource-role IAM condition are transcribed from
 [Required permissions for the workspace service account](https://docs.databricks.com/gcp/en/admin/cloud-configurations/gcp/sa-permissions)
-— treat that page as the source of truth and re-verify in review. The resource-role IAM condition
-(`resource.name.extract("{x}databricks-<workspace-id>") != ""`) limits the create/delete/use
-permissions to resources whose names carry the **contiguous** `databricks-<workspace-id>` token
-(its buckets, instances and disks), so an unrelated resource that merely contains `databricks` and
-the workspace id in separate positions can't match. `resource.name` is a full path with a
-type-specific prefix, so a single `startsWith()` can't cover buckets and instances at once — the
-contiguous `extract()` is the portable form. Verify at finalize (2.8) that the workspace SA can
-create/manage this workspace's instances and disks under it.
+— treat that page as the source of truth and re-verify in review. The condition
+(`resource.name.extract("{x}databricks") != "" && resource.name.extract("{x}<workspace-id>") != ""`)
+limits the create/delete/use permissions to resources whose names carry both `databricks` and this
+workspace's id (its `databricks-<workspace-id>` buckets and workspace-tagged instances/disks), so
+the grant can't be used against unrelated resources in the project. A tighter contiguous/anchored
+match isn't assumed here: Databricks doesn't publish the exact instance/disk naming, so it could
+reject legitimate resources — confirm live resource names before tightening.

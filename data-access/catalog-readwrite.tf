@@ -35,8 +35,10 @@ resource "databricks_storage_credential" "rw" {
 resource "google_storage_bucket_iam_member" "rw_admin" {
   provider = google.analytics_bucket
   bucket   = google_storage_bucket.analytics.name
-  role     = "roles/storage.objectAdmin"
-  member   = "serviceAccount:${databricks_storage_credential.rw.databricks_gcp_service_account[0].email}"
+  # objectUser: create/get/list/delete/update on objects, WITHOUT object-level setIamPolicy
+  # that objectAdmin also carries. The RW credential never needs to rewrite object ACLs.
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${databricks_storage_credential.rw.databricks_gcp_service_account[0].email}"
   condition {
     title       = "poc-expiry"
     description = "Auto-expire this PoC write grant after the PoC end date."
@@ -79,7 +81,7 @@ resource "google_access_context_manager_service_perimeter_ingress_policy" "rw" {
     operations {
       service_name = "storage.googleapis.com"
       # Object + multipart methods only — NOT "*", which would also admit bucket-IAM /
-      # delete / update methods the objectAdmin grant doesn't need.
+      # delete / update methods the objectUser grant doesn't need.
       method_selectors { method = "google.storage.objects.get" }
       method_selectors { method = "google.storage.objects.list" }
       method_selectors { method = "google.storage.objects.create" }

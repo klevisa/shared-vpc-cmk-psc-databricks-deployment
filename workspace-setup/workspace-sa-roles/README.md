@@ -85,4 +85,6 @@ The permission lists and the resource-role IAM condition are transcribed from
 (`resource.name.extract("{x}databricks") != "" && resource.name.extract("{x}<workspace-id>") != ""`)
 limits the create/delete/use permissions to resources whose names carry both `databricks` and this
 workspace's id (its `databricks-<workspace-id>` buckets and workspace-tagged instances/disks), so
-the grant can't be used against unrelated resources in the project.
+the grant can't be used against unrelated resources in the project. A tighter contiguous/anchored
+match isn't assumed here: Databricks doesn't publish the exact instance/disk naming, so it could
+reject legitimate resources — confirm live resource names before tightening.

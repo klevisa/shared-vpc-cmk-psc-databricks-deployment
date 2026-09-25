@@ -113,6 +113,12 @@ resource "google_project_iam_member" "resource_role" {
   # A binding takes ONE condition, so the workspace-scoping expression and the PoC
   # time-box are AND-ed together: manage only THIS workspace's resources, and only until
   # var.poc_expiry (request.time). After expiry the workspace SA can no longer create/manage.
+  #
+  # This is the vendor-canonical condition (two independent extract() tokens). Databricks does
+  # not publish the exact bucket/instance/disk naming, so a tighter contiguous or anchored match
+  # (databricks-<workspace_id>) can't be assumed safe — confirm live resource names first, or it
+  # may reject legitimate instances/disks and break cluster launch. Residual: an unrelated
+  # resource containing both "databricks" and this workspace id in separate positions could match.
   condition {
     title       = "scope-to-workspace-${var.workspace_id}-poc"
     description = "Scope to this workspace's own resources AND auto-expire after the PoC end date."

@@ -30,6 +30,16 @@ variable "catalog_automation_client_secret" {
   description = "OAuth M2M client secret for catalog_automation_sp. Source it from a secret manager / TF_VAR env var — do not hard-code."
 }
 
+# Two-phase de-privilege. Keep TRUE for the initial apply so the SP can build the external
+# locations and storage credentials. Once they exist, set FALSE and re-apply to revoke
+# CREATE_EXTERNAL_LOCATION + CREATE_STORAGE_CREDENTIAL — the latter is a latent privilege
+# escalation (mint a credential to any GCS bucket). CREATE_CATALOG is always retained.
+variable "grant_credential_location_create" {
+  type        = bool
+  default     = true
+  description = "Whether the automation SP holds CREATE_EXTERNAL_LOCATION + CREATE_STORAGE_CREDENTIAL. True for the build apply; set false and re-apply after the objects exist to revoke them (CREATE_CATALOG is kept)."
+}
+
 # ---- Handoff from prereqs / step 2.4 ----
 variable "metastore_id" {
   type        = string

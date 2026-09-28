@@ -108,10 +108,10 @@ flowchart TB
     P0 -->|"service_project_id + number"| P2
     P0 -->|"creator role (service)"| P3
     P1 -->|"host + vpc + node_subnet + PSC names + creator role (host)"| P3
-    P2 -->|"cmek_key_id"| P3
+    P2 -->|"storage + managed_services key ids"| P3
     P3 -->|"gcp_workspace_sa + workspace_id"| P4
     P3 -->|"gcp_workspace_sa + endpoint IPs + DNS zone"| P5
-    P2 -->|"cmek_key_id"| P6
+    P2 -->|"managed_services_cmek_key_id"| P6
     P3 -->|"gcp_workspace_sa"| P6
     P4 --> P7
     P5 --> P7
@@ -153,7 +153,7 @@ Keyring + crypto key in the **service** project; encrypt/decrypt granted to the 
 `compute-system` (VM disks) and `gs-project-accounts` (GCS) agents — the `STORAGE` use case only.
 The `MANAGED_SERVICES` grant goes to the workspace SA in **step 2.7**.
 
-**Handoff (output):** `cmek_key_id`.
+**Handoff (output):** `storage_cmek_key_id` + `managed_services_cmek_key_id`.
 
 ### 2.4 — Data / Databricks Platform → [`workspace/`](workspace/README.md), `finalize=false`
 

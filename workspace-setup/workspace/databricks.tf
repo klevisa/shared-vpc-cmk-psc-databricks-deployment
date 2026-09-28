@@ -23,14 +23,25 @@ resource "random_string" "suffix" {
   length  = 3
 }
 
-# CMEK registration. use_cases MUST include "MANAGED_SERVICES" (not "MANAGED").
-resource "databricks_mws_customer_managed_keys" "this" {
+# CMEK registration — one config object per use case, each pointing at its own key, so the
+# workspace SA's managed-services grant can't decrypt storage and vice versa. use_cases MUST
+# say "MANAGED_SERVICES" (not "MANAGED").
+resource "databricks_mws_customer_managed_keys" "storage" {
   provider   = databricks.accounts
   account_id = var.databricks_account_id
   gcp_key_info {
-    kms_key_id = var.cmek_key_id
+    kms_key_id = var.storage_cmek_key_id
   }
-  use_cases = ["STORAGE", "MANAGED_SERVICES"]
+  use_cases = ["STORAGE"]
+}
+
+resource "databricks_mws_customer_managed_keys" "managed_services" {
+  provider   = databricks.accounts
+  account_id = var.databricks_account_id
+  gcp_key_info {
+    kms_key_id = var.managed_services_cmek_key_id
+  }
+  use_cases = ["MANAGED_SERVICES"]
 }
 
 # Register the backend (relay) + frontend (workspace) PSC endpoints.
@@ -107,8 +118,8 @@ resource "databricks_mws_workspaces" "this" {
 
   private_access_settings_id               = databricks_mws_private_access_settings.pas.private_access_settings_id
   network_id                               = databricks_mws_networks.this.network_id
-  storage_customer_managed_key_id          = databricks_mws_customer_managed_keys.this.customer_managed_key_id
-  managed_services_customer_managed_key_id = databricks_mws_customer_managed_keys.this.customer_managed_key_id
+  storage_customer_managed_key_id          = databricks_mws_customer_managed_keys.storage.customer_managed_key_id
+  managed_services_customer_managed_key_id = databricks_mws_customer_managed_keys.managed_services.customer_managed_key_id
 }
 
 # Assign an existing Unity Catalog metastore. Only in PHASE 2 — the workspace must be

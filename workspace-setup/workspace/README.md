@@ -49,7 +49,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 **⬅️ Carried over from a previous phase** — paste the upstream output, don't invent:
 
 - `google_project_name` : the **service** project id — from **step 2.1** `service_project_id`
-- `cmek_key_id` : the CMEK key resource id — from **step 2.3** `cmek_key_id`
+- `storage_cmek_key_id` / `managed_services_cmek_key_id` : the two CMEK key resource ids — from **step 2.3** outputs (registered under STORAGE / MANAGED_SERVICES respectively)
 - `vpc_network_project_id` : the host project id — from **step 2.2** `host_project`
 - `vpc_name` : the VPC — from **step 2.2** `vpc_name`
 - `node_subnet_name` : the node subnet — from **step 2.2** `node_subnet_name`

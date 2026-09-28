@@ -19,7 +19,8 @@ public_access_enabled     = false
 metastore_id              = "11111111-2222-3333-4444-555555555555" # the region's UC metastore (see databricks-account-setup/README.md)
 
 # ---- from step 2.3 (cmek) ----
-cmek_key_id = "projects/example-databricks-svc/locations/us-central1/keyRings/example-kr/cryptoKeys/example-cmek-key"
+storage_cmek_key_id          = "projects/example-databricks-svc/locations/us-central1/keyRings/example-kr/cryptoKeys/example-cmek-storage"
+managed_services_cmek_key_id = "projects/example-databricks-svc/locations/us-central1/keyRings/example-kr/cryptoKeys/example-cmek-managed-services"
 
 # ---- from step 2.2 (network) ----
 vpc_network_project_id = "example-shared-vpc-host"

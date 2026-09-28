@@ -19,7 +19,7 @@ Two use cases are registered on the key in step 2.4 (`use_cases = ["STORAGE","MA
 
 ## Pre-reqs
 
-- **step 2.3 (`cmek/`) has run** — the CMEK key exists; you have its `cmek_key_id`.
+- **step 2.3 (`cmek/`) has run** — the CMEK keys exist; you have the `managed_services_cmek_key_id`.
 - **step 2.4 (`workspace/`) has run** — the workspace SA exists; you have its `gcp_workspace_sa`.
 
 ## Privileges needed
@@ -36,7 +36,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 **⬅️ Carried over from a previous phase** — paste the upstream output, don't invent:
 
-- `cmek_key_id` : the full KMS resource id — from **step 2.3** output `cmek_key_id`
+- `managed_services_cmek_key_id` : the MANAGED_SERVICES key's full KMS resource id — from **step 2.3** output `managed_services_cmek_key_id`
 - `gcp_workspace_sa` : the workspace service account — from **step 2.4** output `gcp_workspace_sa`
 
 **✍️ Your decisions this phase:**
@@ -59,4 +59,4 @@ terraform init && terraform apply -var-file=terraform.tfvars
 
 ## Additional info
 
-The grant is on the specific crypto **key** (not the key ring), which keeps it least-privilege — the workspace SA can use only this one key. If you ever rotate to a different CMEK key for managed services, re-run this step against the new `cmek_key_id`.
+The grant is on the specific **MANAGED_SERVICES key** (not the key ring, and not the storage key), which keeps it least-privilege — the workspace SA can use only that one key, so it cannot decrypt storage-class data. If you ever rotate to a different managed-services key, re-run this step against the new `managed_services_cmek_key_id`.

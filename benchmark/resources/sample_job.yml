@@ -26,6 +26,10 @@ resources:
             driver_node_type_id: ${var.driver_node_type_id}
             node_type_id: ${var.node_type_id}
             num_workers: ${var.num_workers}
+            # Run as the zero-role node SA; the cluster policy allow-lists it.
+            policy_id: ${resources.cluster_policies.node_identity.id}
+            gcp_attributes:
+              google_service_account: ${var.node_sa}
             spark_conf:
               spark.benchmark.rows: ${var.benchmark_rows}
             # These land on system.billing.usage.custom_tags and on the GCE VM labels,

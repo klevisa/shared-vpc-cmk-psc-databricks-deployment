@@ -46,6 +46,11 @@ variables:
   # the code reads BigQuery via ADC. No SA keys, no secret scopes.
   collector_sa:
     default: gcp-data-collector@example-databricks-svc.iam.gserviceaccount.com
+  # Zero-role node SA (workspace-setup/service-project/node-sa.tf) — the identity workload
+  # clusters run as. With collector_sa it forms the cluster-policy allow-list (see
+  # resources/cluster_policy.yml). PoC scope: just these two; Yahoo extends the list in prod.
+  node_sa:
+    default: databricks-node-sa@example-databricks-svc.iam.gserviceaccount.com
 
   # --- dashboard ---
   warehouse_id:

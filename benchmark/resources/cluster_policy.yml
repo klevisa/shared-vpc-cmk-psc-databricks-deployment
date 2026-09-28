@@ -1,0 +1,21 @@
+resources:
+  cluster_policies:
+    # Allow-list of the Google identities a benchmark cluster may run as. Workload clusters
+    # run as the zero-role node SA; the collector cluster runs as the keyless collector SA.
+    # Any other google_service_account is rejected. PoC scope = these two; Yahoo extends the
+    # list (and applies the pattern workspace-wide) in prod.
+    node_identity:
+      name: benchmark-node-identity
+      definition: |
+        {
+          "gcp_attributes.google_service_account": {
+            "type": "allowlist",
+            "values": ["${var.node_sa}", "${var.collector_sa}"]
+          }
+        }
+      # The run-as SPs must be allowed to use the policy, or their job clusters can't launch.
+      permissions:
+        - service_principal_name: ${var.runner_sp}
+          level: CAN_USE
+        - service_principal_name: ${var.collector_sp}
+          level: CAN_USE

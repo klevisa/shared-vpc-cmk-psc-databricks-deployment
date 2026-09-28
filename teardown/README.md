@@ -16,6 +16,15 @@ plus any account-level or GCP-console step. Run **top to bottom**.
 > **Time-boxing backstops this.** Every PoC-lifetime IAM grant carries a `poc_expiry`
 > `request.time` condition, so it self-expires on the PoC end date regardless.
 
+> **🔴 Kill switch — do this FIRST if you need to cut Databricks' access to data immediately**
+> (incident, or a hard stop before the ordered teardown). **Revoke `cryptoKeyEncrypterDecrypter`
+> on the CMEK key(s)** from the workspace SA (managed-services key) and the two storage agents
+> (storage key) — e.g. `gcloud kms keys remove-iam-policy-binding`. That instantly renders
+> managed-services **and** storage data unreadable to Databricks, including a confused control
+> plane, without waiting for the full `terraform destroy` chain below. (Requires CMEK to have been
+> configured at workspace creation — see stop 11 / `cmek/`.) The key material itself is retained
+> (`prevent_destroy`); you're removing *access*, not destroying the key.
+
 ---
 
 ## Pre-flight

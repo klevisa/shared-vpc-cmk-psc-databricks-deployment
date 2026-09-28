@@ -3,9 +3,14 @@ resources:
     sample_job:
       name: benchmark-sample-${var.engine_tag}
 
-      # Runs as the runner SP (separation of duties); humans get CAN_MANAGE_RUN to trigger.
+      # Runs as the runner SP (separation of duties).
       run_as:
         service_principal_name: ${var.runner_sp}
+
+      # Least-privilege trigger: the Airflow SP may run the job, nothing more.
+      permissions:
+        - level: CAN_MANAGE_RUN
+          service_principal_name: ${var.trigger_sp}
 
       # Failure notification (your requested email-on-failure).
       email_notifications:

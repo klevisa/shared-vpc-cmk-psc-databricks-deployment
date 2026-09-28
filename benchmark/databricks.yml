@@ -64,6 +64,10 @@ variables:
     default: 00000000-0000-0000-0000-00000000bbbb # bench-collector
   analyst_sp:
     default: 00000000-0000-0000-0000-00000000cccc # bench-analyst (dashboard owner)
+  # Airflow trigger identity — gets CAN_MANAGE_RUN on the benchmark job (not run/manage-all).
+  # Prefer an SP with OAuth M2M over a PAT; short-lived secret, rotated, in Secret Manager.
+  trigger_sp:
+    default: 00000000-0000-0000-0000-00000000dddd # airflow-trigger
 
 include:
   - resources/*.yml

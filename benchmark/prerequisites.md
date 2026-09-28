@@ -104,6 +104,13 @@ Dataproc permission at all.
 
 ## 3. The collector service account
 
+> **Now codified in Terraform.** The grants in §3–§5 (collector SA + BigQuery, Composer/STS
+> grants + the VPC-SC rule, and the SP Unity Catalog grants) are created by
+> [`../benchmark-prereqs/`](../../benchmark-prereqs/README.md) — in state, `poc_expiry`-bound,
+> torn down by `terraform destroy`. The `gcloud`/SQL snippets below are the equivalent manual
+> form, kept for reference. The Airflow trigger's `CAN_MANAGE_RUN` is in the job's DAB
+> `permissions`.
+
 | GCP SA | Used by | GCP access |
 |---|---|---|
 | `gcp-data-collector` | `bench-collector`'s collector job cluster | `bigquery.dataViewer` on the authorized view (§2) + `bigquery.jobUser` to run the query. **No `dataproc.*`**. |
@@ -201,7 +208,8 @@ Steps (account admin, then catalog owner):
 3. **System-table schemas** are enabled on the metastore in **Phase 1**. The collector reads only
    `billing` (DBU + `list_prices`) and `lakeflow` (`job_run_timeline` for Databricks runtime) —
    confirm those two are enabled.
-4. **Run the grants** — as the `analytics` catalog owner, run [`sql/grants.sql`](sql/grants.sql) with
-   each SP's application id substituted for `:runner` / `:collector` / `:analyst`.
+4. **Apply the SP grants** — now in Terraform as `databricks_grant` resources in
+   [`../benchmark-prereqs/uc-grants.tf`](../../benchmark-prereqs/uc-grants.tf) (run as a metastore
+   admin), replacing the old manual `sql/grants.sql`.
 5. **Collector GCP access** — keyless (§3): attach `gcp-data-collector` to the collector job cluster
    and grant the workspace SA `actAs` on it. No secret scope.

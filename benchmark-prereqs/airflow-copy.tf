@@ -108,6 +108,12 @@ resource "google_kms_crypto_key_iam_member" "sts_source_decrypt" {
 }
 
 # ---- Copy-target poc_bucket: created here, written by Composer + the STS agent ----
+# poc_bucket holds a slice of the source (Mail) data, so it stays INSIDE the CMEK boundary:
+# CMEK default key + a lifecycle rule that deletes objects after the benchmark window, so the
+# copy doesn't outlive the run. The poc_bucket project's GCS service agent
+# (service-<num>@gs-project-accounts) must hold cryptoKeyEncrypterDecrypter on poc_bucket_kms_key
+# — already granted for the service project by the cmek phase (cmek/kms.tf storage_agents); if
+# poc_bucket lives in a different project, grant that project's GCS agent on the key too.
 resource "google_storage_bucket" "poc" {
   provider                    = google.poc_bucket
   project                     = var.poc_bucket_project
@@ -115,6 +121,18 @@ resource "google_storage_bucket" "poc" {
   location                    = var.poc_bucket_location
   uniform_bucket_level_access = true
   force_destroy               = true # copied input; safe to delete at teardown
+
+  dynamic "encryption" {
+    for_each = var.poc_bucket_kms_key == "" ? [] : [var.poc_bucket_kms_key]
+    content {
+      default_kms_key_name = encryption.value
+    }
+  }
+
+  lifecycle_rule {
+    action { type = "Delete" }
+    condition { age = var.poc_bucket_retention_days }
+  }
 }
 
 # objectUser (not objectAdmin): object create/get/list/delete/update without object-IAM.

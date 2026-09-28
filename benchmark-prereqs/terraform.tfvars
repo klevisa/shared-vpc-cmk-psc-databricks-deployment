@@ -30,9 +30,12 @@ source_bucket        = "example-source-data"
 source_object_prefix = "mail-data/"
 source_cmek_key      = "" # set only if the source bucket uses a customer-managed key
 
-# Copy target (deleted at teardown)
-poc_bucket_name     = "example-benchmark-poc-input"
-poc_bucket_location = "us-central1"
+# Copy target (deleted at teardown). CMEK-encrypted + auto-deleted after the window so the
+# copied source slice stays inside the CMEK boundary and doesn't outlive the benchmark.
+poc_bucket_name           = "example-benchmark-poc-input"
+poc_bucket_location       = "us-central1"
+poc_bucket_kms_key        = "projects/example-databricks-svc/locations/us-central1/keyRings/example-kr/cryptoKeys/example-key"
+poc_bucket_retention_days = 30
 
 # VPC-SC — pin to the source + poc_bucket projects (project numbers), never "*"
 perimeter_name          = "accessPolicies/123456789/servicePerimeters/yahoo_mail_poc"

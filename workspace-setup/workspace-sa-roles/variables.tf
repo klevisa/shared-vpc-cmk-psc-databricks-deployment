@@ -46,5 +46,5 @@ variable "compute_sa_email" {
 variable "additional_actas_service_accounts" {
   type        = list(string)
   default     = []
-  description = "Extra cluster-attached SA emails the workspace SA gets roles/iam.serviceAccountUser on (e.g. the benchmark collector SA). No serviceAccount: prefix."
+  description = "Extra cluster-attached SA emails the workspace SA gets roles/iam.serviceAccountUser on (e.g. the benchmark collector SA and the keyless BigQuery connector SA). No serviceAccount: prefix."
 }

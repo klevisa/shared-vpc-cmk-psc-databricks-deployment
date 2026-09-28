@@ -15,6 +15,10 @@ catalog_automation_sp = "00000000-0000-0000-0000-0000000000dd" # automation SP a
 account_admin_sp_client_secret   = "REPLACE_VIA_TF_VAR_ENV"
 catalog_automation_client_secret = "REPLACE_VIA_TF_VAR_ENV"
 
+# Keep true for the first apply (SP builds the locations/credentials). After they exist, set
+# false and re-apply to revoke CREATE_EXTERNAL_LOCATION + CREATE_STORAGE_CREDENTIAL.
+grant_credential_location_create = true
+
 # ---- from prereqs / step 2.4 ----
 metastore_id  = "11111111-2222-3333-4444-555555555555"
 workspace_url = "https://1234567890123456.7.gcp.databricks.com"

@@ -21,6 +21,7 @@ write results to a managed `analytics` catalog on a bucket created here.
 
 **Automation privileges (scoped, least-privilege):**
 - the Databricks account admin grants the **catalog automation SP** exactly `CREATE_CATALOG` / `CREATE_EXTERNAL_LOCATION` / `CREATE_STORAGE_CREDENTIAL` on the metastore — **not** metastore admin
+- **de-privilege after build:** once the objects exist, set `grant_credential_location_create = false` and re-apply to revoke `CREATE_EXTERNAL_LOCATION` + `CREATE_STORAGE_CREDENTIAL` (the latter can mint a credential to any GCS bucket). `CREATE_CATALOG` is kept for future applies. First apply must run with it **true**, or the SP can't build the locations/credentials.
 
 **Read-only catalog** — over your **existing data bucket**
 - storage credential (generates a Databricks SA) → read-only bucket IAM (`objectViewer` + `legacyBucketReader`) → VPC-SC ingress (read methods) → **read-only** external location → catalog + schema (**namespace only** — external tables registered here later)

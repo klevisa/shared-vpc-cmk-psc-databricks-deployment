@@ -10,13 +10,25 @@
 # NOTE: this grant must propagate before the uc_admin provider creates catalogs.
 # Terraform orders it via depends_on; on a fresh grant you may occasionally need a
 # second apply if propagation lags.
+#
+# De-privilege after build: CREATE_EXTERNAL_LOCATION + CREATE_STORAGE_CREDENTIAL are held
+# only while the SP is building the objects. Once they exist, set
+# grant_credential_location_create = false and re-apply to drop them (CREATE_CATALOG stays).
+# This only edits the metastore grant; it does not touch the created objects.
 # -----------------------------------------------------------------------------
+
+locals {
+  automation_privileges = concat(
+    ["CREATE_CATALOG"],
+    var.grant_credential_location_create ? ["CREATE_EXTERNAL_LOCATION", "CREATE_STORAGE_CREDENTIAL"] : [],
+  )
+}
 
 resource "databricks_grants" "automation" {
   provider  = databricks.accounts
   metastore = var.metastore_id
   grant {
     principal  = var.catalog_automation_sp
-    privileges = ["CREATE_CATALOG", "CREATE_EXTERNAL_LOCATION", "CREATE_STORAGE_CREDENTIAL"]
+    privileges = local.automation_privileges
   }
 }

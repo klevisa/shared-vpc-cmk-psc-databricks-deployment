@@ -145,15 +145,16 @@ Databricks trigger credential) drives the orchestration; people only view result
 | `bench-analyst` | Databricks SP | builds the dashboard | read `analytics.benchmark` only |
 | Airflow (Composer) | GCP SA + Databricks cred | orchestrates: sense, manifest, STS, verify, trigger | Dataproc read + label; GCS r/w; STS; VPC-SC ingress; `CAN_MANAGE_RUN` on the Databricks job |
 
-Creating the principals, the SP↔workspace assignment, the runner's `allow-cluster-create`, enabling
-the system schemas, the grants, and the secret ACL are all in **[prerequisites.md](prerequisites.md)**.
+Creating the principals, the SP↔workspace assignment, enabling the system schemas, the grants,
+and the secret ACL are all in **[prerequisites.md](prerequisites.md)**. The runner is **not**
+granted `allow-cluster-create` — its job clusters run under the cluster policy below (`CAN_USE`).
 
 **Cluster-identity allow-list.** `resources/cluster_policy.yml` defines a cluster policy
 (`benchmark-node-identity`) that allow-lists the Google identity a cluster may run as: the
 zero-role **node SA** for workload clusters and the keyless **collector SA** for the cost
 collector — anything else is rejected. Both job clusters reference it; the run-as SPs get
-`CAN_USE`. This is PoC scope (two identities); in prod Yahoo extends the list and applies the
-same pattern to all-purpose clusters (remove blanket `allow-cluster-create`, grant the policy).
+`CAN_USE` — so no `allow-cluster-create` entitlement is needed. This is PoC scope (two identities);
+in prod Yahoo extends the list and applies the same pattern to all-purpose clusters.
 
 ## Layout
 

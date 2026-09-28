@@ -203,8 +203,11 @@ Steps (account admin, then catalog owner):
 1. **Create the three SPs** and assign each to the workspace (USER). Put their application ids into
    `databricks.yml` (`runner_sp` / `collector_sp` / `analyst_sp`) for `run_as` and the dashboard.
    Give the **Airflow trigger identity** `CAN_MANAGE_RUN` on the benchmark job.
-2. **Runner entitlement** — grant `bench-runner` **allow-cluster-create** (no cluster policies). Set
-   the Databricks job clusters' `custom_tags` to `poc=photon-poc` + `engine` (+ `run_id` via
+2. **Runner cluster access** — do **not** grant `bench-runner` the broad `allow-cluster-create`
+   entitlement. Its job clusters run under the `benchmark-node-identity` cluster policy
+   (`resources/cluster_policy.yml`), which already grants the run-as SPs `CAN_USE` — that is what
+   lets the runner launch its (policy-bounded) job clusters, with the node SA pinned as identity.
+   Set the job clusters' `custom_tags` to `poc=photon-poc` + `engine` (+ `run_id` via
    `{{job.run_id}}`) so their VM cost lands in the same scoped view.
 3. **System-table schemas** are enabled on the metastore in **Phase 1**. The collector reads only
    `billing` (DBU + `list_prices`) and `lakeflow` (`job_run_timeline` for Databricks runtime) —

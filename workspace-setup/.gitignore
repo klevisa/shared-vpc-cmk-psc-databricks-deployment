@@ -2,4 +2,4 @@
 *.tfstate
 *.tfstate.*
 tf.plan
-.terraform.lock.hcl
+# .terraform.lock.hcl is COMMITTED (pins provider versions + hashes; supply-chain guard).

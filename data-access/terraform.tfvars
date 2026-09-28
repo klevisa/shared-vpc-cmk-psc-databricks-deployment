@@ -50,6 +50,7 @@ databricks_source_projects = [
 # ---- Read-only catalog (your EXISTING data bucket) ----
 readonly_bucket                  = "example-source-data"
 readonly_bucket_project          = "example-source-data"
+readonly_object_prefix           = "mail-data/" # SAMPLE — set to your real prefix (must match the RO external location path) during the PoC; "" = whole bucket
 readonly_catalog_name            = "source_data_ro"
 readonly_schema_name             = "raw"
 readonly_storage_credential_name = "cust_data_ro_cred"

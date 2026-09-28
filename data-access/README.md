@@ -24,7 +24,8 @@ write results to a managed `analytics` catalog on a bucket created here.
 - **de-privilege after build:** once the objects exist, set `grant_credential_location_create = false` and re-apply to revoke `CREATE_EXTERNAL_LOCATION` + `CREATE_STORAGE_CREDENTIAL` (the latter can mint a credential to any GCS bucket). `CREATE_CATALOG` is kept for future applies. First apply must run with it **true**, or the SP can't build the locations/credentials.
 
 **Read-only catalog** — over your **existing data bucket**
-- storage credential (generates a Databricks SA) → read-only bucket IAM (`objectViewer` + `legacyBucketReader`) → VPC-SC ingress (read methods) → **read-only** external location → catalog + schema (**namespace only** — external tables registered here later)
+- storage credential (generates a Databricks SA) → read-only bucket IAM (`objectViewer`, **scoped to `readonly_object_prefix`** + `legacyBucketReader`) → VPC-SC ingress (read methods) → **read-only** external location → catalog + schema (**namespace only** — external tables registered here later)
+  - `objectViewer` object reads are scoped by an IAM condition to `readonly_object_prefix` (a **sample** `mail-data/`; set the real prefix during the PoC — it must match the external location path, or `""` for the whole bucket).
 
 **Read-write (managed) catalog** — over the **analytics data bucket (created here)**
 - create the analytics data bucket → storage credential (its own SA) → read-write bucket IAM (`objectAdmin`) → VPC-SC ingress (all methods) → read-write external location → catalog with a **managed `storage_root`** on the analytics bucket → schema (managed tables land in the bucket)

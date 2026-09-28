@@ -45,9 +45,13 @@ variable "metastore_id" {
 }
 
 # ---- Handoff from step 2.3 (cmek) ----
-variable "cmek_key_id" {
+variable "storage_cmek_key_id" {
   type        = string
-  description = "From cmek output cmek_key_id: full KMS resource id."
+  description = "From cmek output storage_cmek_key_id: the STORAGE key's full KMS resource id."
+}
+variable "managed_services_cmek_key_id" {
+  type        = string
+  description = "From cmek output managed_services_cmek_key_id: the MANAGED_SERVICES key's full KMS resource id."
 }
 
 # ---- Handoff from step 2.2 (network) ----

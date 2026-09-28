@@ -16,7 +16,7 @@
 # -----------------------------------------------------------------------------
 
 resource "google_kms_crypto_key_iam_member" "workspace_sa_managed_services" {
-  crypto_key_id = var.cmek_key_id
+  crypto_key_id = var.managed_services_cmek_key_id # MANAGED_SERVICES key only, not the storage key
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:${var.gcp_workspace_sa}"
 

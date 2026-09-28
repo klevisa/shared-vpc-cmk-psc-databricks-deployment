@@ -24,17 +24,28 @@ resource "google_kms_key_ring" "ring" {
   }
 }
 
-resource "google_kms_crypto_key" "key" {
-  name            = var.kms_key_name
-  key_ring        = google_kms_key_ring.ring.id
-  purpose         = "ENCRYPT_DECRYPT"
-  rotation_period = "7776000s" # 90 days
+# Two keys, one per Databricks CMEK use case, so a single encrypt/decrypt grant can't span
+# both data classes: the STORAGE key (workspace root buckets + VM disks, used by the Google
+# storage agents) and the MANAGED_SERVICES key (control-plane notebooks/results/secrets, used
+# by the workspace SA — granted in step 2.7). Revoking one class's grant doesn't touch the
+# other. Both keys carry the same durability guards.
+resource "google_kms_crypto_key" "storage" {
+  name                       = var.kms_storage_key_name
+  key_ring                   = google_kms_key_ring.ring.id
+  purpose                    = "ENCRYPT_DECRYPT"
+  rotation_period            = "7776000s" # 90 days
+  destroy_scheduled_duration = "2592000s" # 30-day recovery window
+  lifecycle {
+    prevent_destroy = true
+  }
+}
 
-  # 30-day recovery window: a scheduled key-version destruction can be cancelled within
-  # this window before the material is gone. Pair with prevent_destroy so terraform can't
-  # remove the key itself.
-  destroy_scheduled_duration = "2592000s" # 30 days
-
+resource "google_kms_crypto_key" "managed_services" {
+  name                       = var.kms_managed_services_key_name
+  key_ring                   = google_kms_key_ring.ring.id
+  purpose                    = "ENCRYPT_DECRYPT"
+  rotation_period            = "7776000s" # 90 days
+  destroy_scheduled_duration = "2592000s" # 30-day recovery window
   lifecycle {
     prevent_destroy = true
   }
@@ -47,9 +58,10 @@ locals {
   ]
 }
 
+# Storage agents get encrypt/decrypt on the STORAGE key ONLY (not managed-services).
 resource "google_kms_crypto_key_iam_member" "storage_agents" {
   for_each      = toset(local.storage_service_agents)
-  crypto_key_id = google_kms_crypto_key.key.id
+  crypto_key_id = google_kms_crypto_key.storage.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = each.value
 

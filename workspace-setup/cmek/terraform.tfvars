@@ -10,5 +10,6 @@ google_region                 = "us-central1"
 # PoC end date — the CMEK STORAGE-agent grants auto-expire after this (request.time).
 poc_expiry = "2026-12-31T00:00:00Z"
 
-kms_keyring_name = "example-kr"
-kms_key_name     = "example-cmek-key"
+kms_keyring_name              = "example-kr"
+kms_storage_key_name          = "example-cmek-storage"
+kms_managed_services_key_name = "example-cmek-managed-services"

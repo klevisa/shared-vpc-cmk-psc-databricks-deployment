@@ -25,4 +25,11 @@ variable "poc_expiry" {
 }
 
 variable "kms_keyring_name" { type = string }
-variable "kms_key_name" { type = string }
+variable "kms_storage_key_name" {
+  type        = string
+  description = "Name for the STORAGE-use-case CMEK key (workspace buckets + VM disks)."
+}
+variable "kms_managed_services_key_name" {
+  type        = string
+  description = "Name for the MANAGED_SERVICES-use-case CMEK key (control-plane data)."
+}

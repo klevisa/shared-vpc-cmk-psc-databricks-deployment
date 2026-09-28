@@ -6,7 +6,7 @@
 
 Creates the customer-managed encryption key (CMEK) in the **service project** and grants the project's Google-managed agents permission to use it:
 
-- **Key ring + crypto key** — the CMEK the workspace's storage and managed services are encrypted with. Both carry `prevent_destroy` and the key has a 30-day `destroy_scheduled_duration`: a lost key bricks all workspace data, so teardown retains them and only schedules key *versions* for destruction (see teardown T6).
+- **Key ring + two crypto keys** — a **STORAGE** key (workspace buckets + VM disks) and a **MANAGED_SERVICES** key (control-plane data), so one use case's encrypt/decrypt grant can't reach the other's data. All carry `prevent_destroy` and a 30-day `destroy_scheduled_duration`: a lost key bricks that data class, so teardown retains them and only schedules key *versions* for destruction (see teardown T6).
 - **Service-agent grants** — `cryptoKeyEncrypterDecrypter` to the service project's:
   - `compute-system` agent (VM disks)
   - `gs-project-accounts` agent (GCS)
@@ -37,7 +37,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 **✍️ Your decisions this phase:**
 
-- `kms_keyring_name` / `kms_key_name` : names for the key ring and CMEK key
+- `kms_keyring_name` / `kms_storage_key_name` / `kms_managed_services_key_name` : names for the key ring and the two CMEK keys
 - `google_service_account_email` : the security SA this config impersonates
 - `google_region` : the region — a decision, but it **must be the same** across every phase
 
@@ -47,7 +47,7 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 
 Copied into the next phase's `terraform.tfvars` (or wired via `terraform_remote_state`):
 
-- `cmek_key_id` : the full KMS resource id (`projects/…/cryptoKeys/…`) → **step 2.4 (workspace)**, which registers it with Databricks
+- `storage_cmek_key_id` / `managed_services_cmek_key_id` : the two full KMS resource ids (`projects/…/cryptoKeys/…`) → **step 2.4 (workspace)**, which registers each under its use case
 
 ## How to run
 
@@ -55,17 +55,17 @@ Copied into the next phase's `terraform.tfvars` (or wired via `terraform_remote_
 terraform init && terraform apply -var-file=terraform.tfvars && terraform output
 ```
 
-Then hand `cmek_key_id` to step 2.4.
+Then hand `storage_cmek_key_id` and `managed_services_cmek_key_id` to step 2.4.
 
 ## Additional info
 
 step 2.3 owns the encryption key on its own, so the security team controls it independently of everyone else. The key lives in the **service project** because that's where the resources it encrypts live — the workspace's GCE disks and GCS buckets — so it's the service project's own Google-managed agents that do the encrypting. We grant `cryptoKeyEncrypterDecrypter` to two of them: the `compute-system` agent (VM disks) and the `gs-project-accounts` agent (GCS). Those agents must already exist, which is why step 2.1 provisions them first.
 
-The only thing that leaves this phase is the key id — step 2.4 takes it from here and registers it with the workspace for **both** the STORAGE and MANAGED_SERVICES use cases.
+What leaves this phase is the two key ids — step 2.4 takes them from here and registers each under its use case (STORAGE / MANAGED_SERVICES).
 
-### STORAGE vs MANAGED_SERVICES — one key, two encryptors, two grants
+### STORAGE vs MANAGED_SERVICES — two keys, two encryptors, two grants
 
-The two use cases protect data in two different places, encrypted by two different identities — which is why the grants are split across two steps:
+The two use cases protect data in two different places, encrypted by two different identities, and now under **two separate keys** so a single encrypt/decrypt grant can't span both classes — which is why the grants are split across two steps:
 
 | Use case | What it encrypts | Where it lives | Who does the encrypting | Grant made in |
 |---|---|---|---|---|

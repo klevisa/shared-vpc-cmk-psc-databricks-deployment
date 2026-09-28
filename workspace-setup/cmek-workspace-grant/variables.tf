@@ -22,9 +22,9 @@ variable "poc_expiry" {
 }
 
 # ---- Handoff from step 2.3 (cmek) ----
-variable "cmek_key_id" {
+variable "managed_services_cmek_key_id" {
   type        = string
-  description = "From cmek output cmek_key_id: the full KMS resource id (projects/<svc>/locations/<region>/keyRings/<kr>/cryptoKeys/<key>)."
+  description = "From cmek output managed_services_cmek_key_id: the MANAGED_SERVICES key's full KMS resource id. The workspace SA is granted encrypt/decrypt on THIS key only (not the storage key)."
 }
 
 # ---- Handoff from step 2.4 (workspace) ----

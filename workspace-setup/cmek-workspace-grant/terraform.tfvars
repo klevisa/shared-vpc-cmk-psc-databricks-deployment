@@ -11,7 +11,7 @@ google_region                = "us-central1"
 poc_expiry = "2026-12-31T00:00:00Z"
 
 # ---- from step 2.3 (cmek) ----
-cmek_key_id = "projects/example-databricks-svc/locations/us-central1/keyRings/example-kr/cryptoKeys/example-cmek-key"
+managed_services_cmek_key_id = "projects/example-databricks-svc/locations/us-central1/keyRings/example-kr/cryptoKeys/example-cmek-managed-services"
 
 # ---- from step 2.4 (workspace) ----
 gcp_workspace_sa = "db-1234567890123456@prod-gcp-us-central1.iam.gserviceaccount.com"

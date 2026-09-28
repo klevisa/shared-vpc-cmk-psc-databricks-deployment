@@ -63,7 +63,10 @@ resource "databricks_mws_private_access_settings" "pas" {
   private_access_settings_name = "${var.databricks_workspace_name}-pas-${random_string.suffix.result}"
   region                       = var.google_region
   public_access_enabled        = var.public_access_enabled
-  private_access_level         = "ACCOUNT" # or "ENDPOINT" to restrict to specific VPC endpoints
+  # ENDPOINT (not ACCOUNT): only the front-end PSC endpoint created here may reach the
+  # workspace privately, not any endpoint registered elsewhere in the Databricks account.
+  private_access_level     = "ENDPOINT"
+  allowed_vpc_endpoint_ids = [databricks_mws_vpc_endpoint.workspace.vpc_endpoint_id]
 }
 
 # Network config: HOST project VPC + node subnet + both PSC endpoints.

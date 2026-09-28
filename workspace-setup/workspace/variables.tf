@@ -15,7 +15,11 @@ variable "google_region" { type = string }
 variable "public_access_enabled" {
   type        = bool
   default     = false
-  description = "IMMUTABLE after creation. false = fully private (PSC-only)."
+  description = "IMMUTABLE after creation. false = fully private (PSC-only). Guarded to false: this deployment is private-by-design."
+  validation {
+    condition     = var.public_access_enabled == false
+    error_message = "This deployment is private-by-design; public_access_enabled must be false (a public front end is not permitted). Remove this validation deliberately if that ever changes."
+  }
 }
 variable "finalize" {
   type        = bool

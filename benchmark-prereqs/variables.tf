@@ -91,6 +91,16 @@ variable "poc_bucket_location" {
   default     = "us-central1"
   description = "Location for poc_bucket."
 }
+variable "poc_bucket_kms_key" {
+  type        = string
+  default     = ""
+  description = "CMEK key id for poc_bucket so the copied source slice stays inside the CMEK boundary (e.g. the workspace key). The poc_bucket project's GCS service agent must have encrypt/decrypt on it. Empty = Google-managed encryption (leaves the copy outside CMEK — T10.3)."
+}
+variable "poc_bucket_retention_days" {
+  type        = number
+  default     = 30
+  description = "Delete poc_bucket objects this many days after creation, so the copied input doesn't outlive the benchmark window."
+}
 
 # ---- VPC-SC ----
 variable "perimeter_name" {

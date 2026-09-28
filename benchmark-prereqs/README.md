@@ -14,7 +14,7 @@ identity map. Runs after the workspace + data-access phases exist.
 | Keyless collector SA + BQ reads | `dataViewer` on the **authorized view** + `jobUser` on the billing project | keyless (ADC on the cluster); `jobUser` time-boxed; view-only, never the raw export |
 | Composer (Airflow) SA | custom **Dataproc** role (not `dataproc.editor`), source read (prefix-scoped), `poc_bucket` write, custom **STS** role | custom roles; `poc_expiry`; prefix + bucket scoping |
 | STS service agent | source read (prefix) + `poc_bucket` write (`objectUser`, not `objectAdmin`) | `poc_expiry`; optional CMEK decrypt only if the source is CMEK |
-| `poc_bucket` | created here; `force_destroy` (copied input) | uniform bucket-level access (enables IAM conditions) |
+| `poc_bucket` | created here; `force_destroy` (copied input) | **CMEK** (`poc_bucket_kms_key`) so the copied source slice stays inside the CMEK boundary; **lifecycle delete** after `poc_bucket_retention_days`; uniform bucket-level access |
 | STS VPC-SC ingress rule | STS agent, pinned projects, copy methods only | **only needed if the source is inside a perimeter**; remove otherwise |
 | SP Unity Catalog grants | `bench-runner` / `-collector` / `-analyst` (ported from `sql/grants.sql`) | additive `databricks_grant` (no clobbering); least-privilege per SP |
 
@@ -24,6 +24,7 @@ identity map. Runs after the workspace + data-access phases exist.
 - `sts_protected_resources` / `perimeter_name` — **only if** the source bucket is inside a
   VPC-SC perimeter and STS is the copy mechanism. If not, delete the ingress rule.
 - `source_cmek_key` — only if the source bucket uses a customer-managed key.
+- `poc_bucket_kms_key` — the CMEK key for `poc_bucket` (default points at the workspace key); its project's GCS service agent needs encrypt/decrypt on it (already granted for the service project by the cmek phase).
 
 ## Providers / who runs it
 

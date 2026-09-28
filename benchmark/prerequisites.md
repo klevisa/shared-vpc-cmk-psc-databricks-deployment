@@ -175,9 +175,10 @@ Composer's service account needs:
 - **GCS**: object read on the source bucket (manifest) and object admin on `poc_bucket`;
 - **STS**: `storagetransfer.jobs.create` / `.run`; the **STS service agent**
   (`project-<PROJNUM>@storage-transfer-service.iam.gserviceaccount.com`) needs `objectViewer` on
-  source and `objectAdmin` on `poc_bucket`. `poc_bucket` uses **Google-managed** encryption, so **no
-  CMEK grant is needed**; CMEK enters only if the **source** bucket sets a customer-managed default
-  key, in which case grant the STS agent `cryptoKeyEncrypterDecrypter` (decrypt) on that key;
+  source and `objectUser` on `poc_bucket`. `poc_bucket` is **CMEK-encrypted** (`poc_bucket_kms_key`,
+  see [`../benchmark-prereqs/`](../../benchmark-prereqs/README.md)) so the copied slice stays inside
+  the CMEK boundary; if the **source** bucket also uses a customer-managed key, grant the STS agent
+  `cryptoKeyEncrypterDecrypter` (decrypt) on that key (`source_cmek_key`);
 - **VPC-SC**: an ingress/egress rule admitting STS across the perimeter between the source and
   `poc_bucket` projects (same class of change as the storage-credential SA in the data-access phase);
 - **Databricks**: a connection/credential (PAT or SP OAuth) with `CAN_MANAGE_RUN` on the benchmark

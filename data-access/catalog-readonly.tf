@@ -32,10 +32,14 @@ resource "google_storage_bucket_iam_member" "ro_viewer" {
   bucket   = var.readonly_bucket
   role     = "roles/storage.objectViewer"
   member   = "serviceAccount:${databricks_storage_credential.ro.databricks_gcp_service_account[0].email}"
+  # Scope object reads to var.readonly_object_prefix AND time-box to poc_expiry (AND-ed).
+  # The prefix here is a SAMPLE ("mail-data/") — the real path is decided during the PoC and
+  # MUST match the RO external location's path, or reads under the location fail. Empty prefix
+  # => whole bucket. (Bucket listing is granted separately by ro_lister and stays bucket-wide.)
   condition {
-    title       = "poc-expiry"
-    description = "Auto-expire this PoC read grant after the PoC end date."
-    expression  = "request.time < timestamp(\"${var.poc_expiry}\")"
+    title       = "prefix-scope-and-poc-expiry"
+    description = "Read only under the configured object prefix, and only until the PoC end date."
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${var.readonly_bucket}/objects/${var.readonly_object_prefix}\") && request.time < timestamp(\"${var.poc_expiry}\")"
   }
 }
 

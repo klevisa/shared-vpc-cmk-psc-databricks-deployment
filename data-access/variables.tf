@@ -121,6 +121,16 @@ variable "readonly_bucket" {
   type        = string
   description = "EXISTING GCS bucket with your data (name only). Accessed read-only."
 }
+
+# Object-prefix the RO credential may read, so read is scoped to a prefix rather than the
+# whole bucket. SAMPLE default — the real prefix is decided during the PoC and MUST match
+# the RO external location's path (reads under the location fail otherwise). Set to "" to
+# read the whole bucket. Trailing slash recommended (e.g. "mail-data/").
+variable "readonly_object_prefix" {
+  type        = string
+  default     = "mail-data/"
+  description = "Object-name prefix the RO credential is scoped to (must match the external location path). Sample value; finalized during the PoC. Empty = whole bucket."
+}
 variable "readonly_bucket_project" {
   type        = string
   description = "Project that owns the existing data bucket (google.data_bucket provider project)."

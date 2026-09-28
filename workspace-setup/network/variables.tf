@@ -48,6 +48,15 @@ variable "vpc_name" { type = string }
 variable "node_subnet_name" { type = string }
 variable "node_subnet_cidr" { type = string }
 variable "pe_subnet_name" { type = string }
+
+# Private Google Access VIP the egress lockdown allows. restricted.googleapis.com
+# (199.36.153.4/30) covers the VPC-SC-integrated APIs this deployment uses (Storage, KMS,
+# BigQuery, Storage Transfer). Use private.googleapis.com (199.36.153.8/30) instead only if a
+# required API isn't on the restricted VIP.
+variable "google_apis_vip" {
+  type    = string
+  default = "199.36.153.4/30"
+}
 variable "pe_subnet_cidr" { type = string }
 
 # ---- PSC endpoints ----

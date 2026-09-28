@@ -115,8 +115,10 @@ workspace-setup/           Phase 2 — the secure workspace (steps 2.1–2.9, ea
 data-access/               Phase 3 — read-only + read-write Unity Catalog catalogs over GCS
 serverless-setup/          Phase 4 — serverless compute (NCC, perimeter, firewall)
 benchmark/                 Phases 5–6 — deploy workloads, run, measure; setup in prerequisites.md
+benchmark-prereqs/         Phases 5–6 GCP grants in Terraform (collector/Composer/STS SAs, poc_bucket)
+bigquery-access/           Keyless BigQuery connector SA for classic clusters (spark-bigquery-connector)
 teardown/                  Phase 7 — ordered teardown (reverse of the standup) + deletion evidence
-docs/                      architecture reference
+docs/                      architecture reference · custom-roles-reference.md · dpms-connection-template.md
 ```
 
 > **Example values.** Project ids, names, CIDRs, and account ids in each `terraform.tfvars`

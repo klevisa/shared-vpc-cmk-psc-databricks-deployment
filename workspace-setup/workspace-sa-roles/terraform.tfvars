@@ -14,7 +14,12 @@ workspace_id     = "1234567890"
 # actAs is scoped to THIS SA only. From step 2.1 output node_sa_email.
 compute_sa_email = "databricks-node-sa@example-service-project.iam.gserviceaccount.com"
 
-# Extra cluster-attached SAs the workspace SA must actAs (added per phase, e.g. Phase 5's
-# keyless benchmark collector SA). Default none; re-apply with the SA appended, e.g.:
-# additional_actas_service_accounts = ["gcp-data-collector@example-databricks-svc.iam.gserviceaccount.com"]
+# Extra cluster-attached SAs the workspace SA must actAs (added per phase; the SA must exist
+# first, then re-apply this root with it appended). Examples: Phase 5's keyless benchmark
+# collector SA, and the keyless BigQuery connector SA (bigquery-access/ output), which is
+# attached to classic clusters running the spark-bigquery-connector. e.g.:
+# additional_actas_service_accounts = [
+#   "gcp-data-collector@example-databricks-svc.iam.gserviceaccount.com",
+#   "databricks-bq-connector@example-databricks-svc.iam.gserviceaccount.com",
+# ]
 additional_actas_service_accounts = []

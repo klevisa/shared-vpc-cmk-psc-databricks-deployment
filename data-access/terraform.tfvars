@@ -15,9 +15,12 @@ catalog_automation_sp = "00000000-0000-0000-0000-0000000000dd" # automation SP a
 account_admin_sp_client_secret   = "REPLACE_VIA_TF_VAR_ENV"
 catalog_automation_client_secret = "REPLACE_VIA_TF_VAR_ENV"
 
-# Keep true for the first apply (SP builds the locations/credentials). After they exist, set
-# false and re-apply to revoke CREATE_EXTERNAL_LOCATION + CREATE_STORAGE_CREDENTIAL.
-grant_credential_location_create = true
+# Fail-closed: leave this false (the de-privileged resting state). The catalog automation SP
+# then holds only CREATE_CATALOG. For the FIRST build apply only, override on the command line
+# (`-var 'grant_credential_location_create=true'`) so the SP can create the credentials/locations,
+# then apply again without the override to drop CREATE_EXTERNAL_LOCATION + CREATE_STORAGE_CREDENTIAL.
+# See README "How to run". Leaving this true is threat-model Outstanding #5 / PSECBUGS-117552.
+grant_credential_location_create = false
 
 # ---- from prereqs / step 2.4 ----
 metastore_id  = "11111111-2222-3333-4444-555555555555"

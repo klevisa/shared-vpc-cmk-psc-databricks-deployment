@@ -36,8 +36,8 @@ variable "catalog_automation_client_secret" {
 # escalation (mint a credential to any GCS bucket). CREATE_CATALOG is always retained.
 variable "grant_credential_location_create" {
   type        = bool
-  default     = true
-  description = "Whether the automation SP holds CREATE_EXTERNAL_LOCATION + CREATE_STORAGE_CREDENTIAL. True for the build apply; set false and re-apply after the objects exist to revoke them (CREATE_CATALOG is kept)."
+  default     = false
+  description = "Whether the automation SP holds CREATE_EXTERNAL_LOCATION + CREATE_STORAGE_CREDENTIAL (the latter can mint a credential to any GCS bucket). Fail-closed: defaults false so the resting state is de-privileged. Override to true ONLY for the first build apply (`-var 'grant_credential_location_create=true'`), then apply again without the override to drop them (CREATE_CATALOG is always kept)."
 }
 
 # ---- Handoff from prereqs / step 2.4 ----

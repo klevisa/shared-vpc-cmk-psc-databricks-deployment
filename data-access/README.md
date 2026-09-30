@@ -21,7 +21,7 @@ write results to a managed `analytics` catalog on a bucket created here.
 
 **Automation privileges (scoped, least-privilege):**
 - the Databricks account admin grants the **catalog automation SP** exactly `CREATE_CATALOG` / `CREATE_EXTERNAL_LOCATION` / `CREATE_STORAGE_CREDENTIAL` on the metastore — **not** metastore admin
-- **de-privilege after build:** once the objects exist, set `grant_credential_location_create = false` and re-apply to revoke `CREATE_EXTERNAL_LOCATION` + `CREATE_STORAGE_CREDENTIAL` (the latter can mint a credential to any GCS bucket). `CREATE_CATALOG` is kept for future applies. First apply must run with it **true**, or the SP can't build the locations/credentials.
+- **de-privilege after build (fail-closed):** `grant_credential_location_create` defaults **false**, so the resting state grants the SP only `CREATE_CATALOG`. The **first build apply** overrides it to `true` on the command line so the SP can create the locations/credentials; the **second apply** (no override) drops `CREATE_EXTERNAL_LOCATION` + `CREATE_STORAGE_CREDENTIAL` (the latter can mint a credential to any GCS bucket). This two-apply sequence is the **How to run** below — the SP is left de-privileged for the whole operational life of the PoC, not just before teardown.
 
 **Read-only catalog** — over your **existing data bucket**
 - storage credential (generates a Databricks SA) → read-only bucket IAM (`objectViewer`, **scoped to `readonly_object_prefix`** + `legacyBucketReader`) → VPC-SC ingress (read methods) → **read-only** external location → catalog + schema (**namespace only** — external tables registered here later)
@@ -90,8 +90,17 @@ Set in `terraform.tfvars`, grouped by where the value comes from:
 ## How to run
 
 ```bash
-terraform init && terraform apply -var-file=terraform.tfvars && terraform output
+# 1. Build — temporarily grant the credential/location create privilege for this apply only:
+terraform init && terraform apply -var-file=terraform.tfvars -var 'grant_credential_location_create=true'
+
+# 2. De-privilege — apply again WITHOUT the override (tfvars default false) to drop
+#    CREATE_EXTERNAL_LOCATION + CREATE_STORAGE_CREDENTIAL; CREATE_CATALOG is kept:
+terraform apply -var-file=terraform.tfvars && terraform output
 ```
+
+> Run step 2 **immediately** after step 1 — the whole point is that the SP does not sit with
+> credential-minting power for the life of the PoC. A fresh grant may need step 1 run twice if
+> propagation lags (see caveats below).
 
 ## Additional info
 

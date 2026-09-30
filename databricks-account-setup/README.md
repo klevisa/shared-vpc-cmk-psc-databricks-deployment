@@ -48,6 +48,17 @@ organization — all workspaces live under the same account.
    benchmark) authenticate as this SP over the account API — no GCP identity. **Revoke the secret
    as soon as Phase 5 setup completes** (don't wait for final teardown).
 
+> **🔑 OAuth secret hygiene — required checklist, not advice.** Both automation service
+> principals authenticate with OAuth M2M secrets that live **outside Terraform** (passed at apply
+> time via `TF_VAR_…`), so nothing in code can enforce their lifetime or revocation — this is the
+> customer-owned residual in threat-model **Outstanding #3 / PSECBUGS-117550**. Apply to **both**
+> the **account-admin SP** (identity 3 above) **and** the non-admin **`catalog_automation_sp`**
+> created for Phase 3 (`data-access`):
+> - [ ] **Short lifetime at generation** — days matching the setup window, **not** the console's **2-year default**.
+> - [ ] **Store in Secret Manager**, not a CI env var or a file on disk; inject at apply time via `TF_VAR_…`.
+> - [ ] **Revoke as soon as the SP's last phase completes** — the **account-admin SP after Phase 5**; the **`catalog_automation_sp` after Phase 3** (`data-access`). Do **not** wait for final teardown.
+> - [ ] **Rotate** if the setup window runs long; **alert** on account-API calls outside the setup window.
+
 Account admins hold workspace-admin implicitly on every workspace they create, so no separate
 workspace admin is required. A *delegated*, non-account-admin workspace admin can be assigned by
 the Data Platform team once a group has synced (1.2) — a one-line account-API step.

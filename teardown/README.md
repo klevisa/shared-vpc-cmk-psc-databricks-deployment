@@ -16,14 +16,29 @@ plus any account-level or GCP-console step. Run **top to bottom**.
 > **Time-boxing backstops this.** Every PoC-lifetime IAM grant carries a `poc_expiry`
 > `request.time` condition, so it self-expires on the PoC end date regardless.
 
-> **🔴 Kill switch — do this FIRST if you need to cut Databricks' access to data immediately**
-> (incident, or a hard stop before the ordered teardown). **Revoke `cryptoKeyEncrypterDecrypter`
-> on the CMEK key(s)** from the workspace SA (managed-services key) and the two storage agents
-> (storage key) — e.g. `gcloud kms keys remove-iam-policy-binding`. That instantly renders
-> managed-services **and** storage data unreadable to Databricks, including a confused control
-> plane, without waiting for the full `terraform destroy` chain below. (Requires CMEK to have been
-> configured at workspace creation — see stop 11 / `cmek/`.) The key material itself is retained
-> (`prevent_destroy`); you're removing *access*, not destroying the key.
+> **🔴 Kill switch — cut Databricks' access immediately** (incident, or a hard stop before the
+> ordered teardown). There are **two independent access paths, protected by two different
+> mechanisms** — to fully cut Databricks off you must pull **both** levers.
+>
+> **Lever A — the Mail source + analytics DATA buckets (the sensitive data). Pull this FIRST.**
+> These buckets use **Google-managed encryption (GMEK)** by Yahoo's decision (2026-09-30), so
+> revoking the CMEK key grant (Lever B) does **NOT** touch them. Databricks reaches them through
+> **bucket IAM**, not the CMEK keys: the read-only credential SA (`roles/storage.objectViewer` +
+> `roles/storage.legacyBucketReader`, `data-access/catalog-readonly.tf`) and the read-write
+> credential SA (`roles/storage.objectUser`, `data-access/catalog-readwrite.tf`). To cut access,
+> **revoke those bucket IAM bindings** (`gcloud storage buckets remove-iam-policy-binding` on the
+> Mail bucket and the analytics bucket) or run **`terraform destroy data-access/`** (this is the
+> ordered step **T3**, brought forward). Until you do this, Databricks can still read the Mail
+> prefix and write the analytics bucket.
+>
+> **Lever B — Databricks managed-services + workspace-storage data.** **Revoke
+> `cryptoKeyEncrypterDecrypter` on the CMEK key(s)** from the workspace SA (managed-services key)
+> and the two storage agents (storage key) — e.g. `gcloud kms keys remove-iam-policy-binding`.
+> This renders the **CMEK-protected** data — managed-services metadata and the workspace storage
+> bucket (notebooks, DBFS root, job results) — unreadable to Databricks, including a confused
+> control plane. It does **not** affect the GMEK data buckets (that's Lever A). (Requires CMEK to
+> have been configured at workspace creation — see stop 11 / `cmek/`.) The key material itself is
+> retained (`prevent_destroy`); you're removing *access*, not destroying the key.
 
 ---
 

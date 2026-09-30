@@ -35,6 +35,6 @@ variable "bq_dataset" {
 }
 variable "read_write" {
   type        = bool
-  default     = true
-  description = "true = read + write (adds dataEditor). false = read-only (dataViewer only)."
+  default     = false
+  description = "false (default) = read-only (dataViewer only). true = read + write (adds dataEditor). NOTE: dataset-level dataEditor does NOT support an IAM condition, so a write grant does NOT expire at poc_expiry — it is permanent until teardown. Only set true when writes are required, and keep the target dataset in a project separate from any production data."
 }

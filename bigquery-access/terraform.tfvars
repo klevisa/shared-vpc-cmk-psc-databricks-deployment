@@ -10,6 +10,8 @@ bq_dataset_owner_sa      = "bq-dataset-owner@example-source-data.iam.gserviceacc
 gcp_project                = "example-databricks-svc"
 bq_connector_sa_account_id = "databricks-bq-connector"
 
-bq_project = "example-source-data"
+# Keep the BigQuery dataset in a project SEPARATE from any production data. dataEditor at
+# dataset level cannot carry a poc_expiry condition, so a write grant would be permanent.
+bq_project = "example-bq-analytics"
 bq_dataset = "mail_analytics_poc"
-read_write = true
+read_write = false
